@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import Header from "@/components/layout/Header";
 import HomePage from "@/components/HomePage";
 import CatalogOverlay from "@/components/hero/CatalogOverlay";
@@ -42,6 +43,7 @@ export default function CinematicHeroPage() {
   const [catalogDepth, setCatalogDepth] = useState<CatalogDepth>(0);
   const [productsRevealed, setProductsRevealed] = useState(false);
   const [catalogContentReady, setCatalogContentReady] = useState(false);
+  const [heroIntroDone, setHeroIntroDone] = useState(false);
   const catalogMountedRef = useRef(false);
   const isMobile = useIsMobile();
   const {
@@ -55,6 +57,13 @@ export default function CinematicHeroPage() {
 
   const viewMode = depthToViewMode(catalogDepth);
   const inCatalog = catalogDepth > 0;
+
+  useEffect(() => {
+    const onIntroDone = () => setHeroIntroDone(true);
+    document.addEventListener("heroIntroComplete", onIntroDone);
+    if (heroRef.current?.introComplete) setHeroIntroDone(true);
+    return () => document.removeEventListener("heroIntroComplete", onIntroDone);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -440,6 +449,23 @@ export default function CinematicHeroPage() {
           viewMode={viewMode}
           contentReady={catalogContentReady}
         />
+
+        {catalogDepth === 0 && heroIntroDone ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 border-t border-white/[0.08] bg-[#050505]/80 px-4 py-3 backdrop-blur-sm md:px-8"
+            aria-live="polite"
+          >
+            <p className="flex items-center justify-center gap-2 text-center text-[10px] font-medium tracking-[0.28em] text-gray-500 uppercase">
+              <ChevronDown
+                className="h-3.5 w-3.5 shrink-0 animate-bounce text-brand"
+                aria-hidden
+              />
+              {isMobile
+                ? "Swippa verso il basso per esplorare prodotti e categorie"
+                : "Scorri giù per esplorare prodotti e categorie"}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <div
