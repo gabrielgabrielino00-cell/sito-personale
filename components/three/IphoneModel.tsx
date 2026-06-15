@@ -694,7 +694,7 @@ export function PremiumHeroRig({
   return (
     <PremiumAnimContext.Provider value={ctx}>
       <IphoneMesh onLoaded={handleLoaded} />
-      <TechParticles />
+
       {children}
     </PremiumAnimContext.Provider>
   );
