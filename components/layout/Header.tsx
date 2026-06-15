@@ -15,7 +15,7 @@ import {
   TikTokIcon,
 } from "@/components/ui/SocialIcons";
 import ThemeToggle from "@/components/theme/ThemeToggle";
-import TorchToggle from "@/components/effects/TorchToggle";
+
 
 const socialIcons = {
   Whatsapp: WhatsappIcon,
@@ -86,7 +86,6 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
-          <TorchToggle />
           <ThemeToggle />
 
           {socialLinks.map((social) => {
