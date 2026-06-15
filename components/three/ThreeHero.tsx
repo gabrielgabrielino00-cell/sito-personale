@@ -303,26 +303,6 @@ function HeroOverlay({
   );
 }
 
-function MobileFallback({ onEnable }: { onEnable: () => void }) {
-  return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 bg-[#050505] px-6 text-center">
-      <div
-        className="h-44 w-44 rounded-[2rem] border border-white/[0.08] bg-gradient-to-b from-[#121218] to-[#0a0a0f] shadow-[0_0_60px_rgba(62,200,232,0.08)]"
-        aria-hidden
-      />
-      <p className="text-xl font-medium tracking-tight text-white">iPhone 16 Pro</p>
-      <p className="text-sm text-gray-600">Premium 3D experience</p>
-      <button
-        type="button"
-        onClick={onEnable}
-        className="rounded-full border border-white/10 bg-white/[0.04] px-8 py-3 text-sm text-white transition hover:border-white/20"
-      >
-        Attiva 3D
-      </button>
-    </div>
-  );
-}
-
 // ─── Root hero section ───
 
 const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero(
@@ -330,7 +310,6 @@ const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero
   ref,
 ) {
   const isMobile = useIsMobile();
-  const [webglEnabled, setWebglEnabled] = useState(true);
   const [sceneReady, setSceneReady] = useState(false);
   const [introComplete, setIntroComplete] = useState(false);
   const introCamera = introCameraProps(isMobile);
@@ -356,21 +335,6 @@ const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero
     document.dispatchEvent(new Event("loading:scene"));
     document.dispatchEvent(new Event("heroSceneReady"));
   }, []);
-
-  useEffect(() => {
-    if (isMobile) setWebglEnabled(false);
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (!isMobile || webglEnabled) return;
-
-    const timer = window.setTimeout(() => {
-      handleSceneReady();
-      handleIntroComplete();
-    }, 600);
-
-    return () => window.clearTimeout(timer);
-  }, [isMobile, webglEnabled, handleSceneReady, handleIntroComplete]);
 
   const handleDezoomReady = useCallback(
     (api: {
@@ -405,33 +369,29 @@ const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero
         }}
       />
 
-      {isMobile && !webglEnabled ? (
-        <MobileFallback onEnable={() => setWebglEnabled(true)} />
-      ) : (
-        <Canvas
-          dpr={isMobile ? [1, 1.35] : [1.5, 2.5]}
-          frameloop="demand"
-          gl={{
-            antialias: !isMobile,
-            alpha: false,
-            powerPreference: "high-performance",
-            stencil: false,
-          }}
-          shadows={!isMobile}
-          camera={introCamera}
-          className="h-full w-full"
-        >
-          <Suspense fallback={null}>
-            <HeroScene
-              isMobile={isMobile}
-              onModelLoaded={handleModelLoaded}
-              onIntroComplete={handleIntroComplete}
-              onSceneReady={handleSceneReady}
-              onDezoomReady={handleDezoomReady}
-            />
-          </Suspense>
-        </Canvas>
-      )}
+      <Canvas
+        dpr={isMobile ? [1, 1.35] : [1.5, 2.5]}
+        frameloop="demand"
+        gl={{
+          antialias: !isMobile,
+          alpha: false,
+          powerPreference: "high-performance",
+          stencil: false,
+        }}
+        shadows={!isMobile}
+        camera={introCamera}
+        className="h-full w-full"
+      >
+        <Suspense fallback={null}>
+          <HeroScene
+            isMobile={isMobile}
+            onModelLoaded={handleModelLoaded}
+            onIntroComplete={handleIntroComplete}
+            onSceneReady={handleSceneReady}
+            onDezoomReady={handleDezoomReady}
+          />
+        </Suspense>
+      </Canvas>
 
       <HeroOverlay
         visible={introComplete && showHeroText}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Header from "@/components/layout/Header";
 import HomePage from "@/components/HomePage";
 import CatalogOverlay from "@/components/hero/CatalogOverlay";
+import ThreeHero from "@/components/three/ThreeHero";
 import { useCatalogTransition } from "@/hooks/useCatalogTransition";
 import {
   useHeroCatalogScrollTrigger,
@@ -12,7 +12,6 @@ import {
   type CatalogDepth,
 } from "@/hooks/useHeroCatalogScrollTrigger";
 import type { ThreeHeroHandle } from "@/components/three/ThreeHero";
-import { preloadCategoryModels } from "@/components/three/preloadModels";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import CartPanel from "@/components/cart/CartPanel";
 import {
@@ -21,22 +20,6 @@ import {
   requestCategoryFilter,
   type SiteDestination,
 } from "@/lib/siteNavigation";
-
-const ThreeHero = dynamic(
-  () =>
-    import("@/components/three/ThreeHero").then((mod) => {
-      if (typeof document !== "undefined") {
-        document.dispatchEvent(new Event("loading:hero"));
-      }
-      return mod;
-    }),
-  {
-    ssr: false,
-    loading: () => (
-      <section className="flex h-full min-h-[600px] items-center justify-center bg-[#050505]" />
-    ),
-  },
-);
 
 type ScrollIntent =
   | "reveal"
@@ -119,10 +102,8 @@ export default function CinematicHeroPage() {
   }, [isMobile]);
 
   useEffect(() => {
-    if (!catalogContentReady || isMobile) return;
-    const preloadTimerId = window.setTimeout(() => preloadCategoryModels(), 5000);
-    return () => window.clearTimeout(preloadTimerId);
-  }, [catalogContentReady, isMobile]);
+    document.dispatchEvent(new Event("loading:hero"));
+  }, []);
 
   const ensureCatalogContent = useCallback(async () => {
     if (catalogContentReady) {
@@ -182,9 +163,6 @@ export default function CinematicHeroPage() {
     if (!heroRef.current?.introComplete) return;
 
     transitionRunningRef.current = true;
-    if (!isMobile) {
-      preloadCategoryModels();
-    }
     await ensureCatalogContent();
 
     const panel = catalogPanelRef.current;

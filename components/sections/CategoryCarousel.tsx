@@ -1,59 +1,35 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import type { CategoryIcon } from "@/lib/data";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { categories } from "@/lib/data";
 import SwapReveal from "@/components/motion/SwapReveal";
 import { useCoverflowCarousel } from "@/hooks/useCoverflowCarousel";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   requestCategoryFilter,
   requestSiteNavigation,
 } from "@/lib/siteNavigation";
-const Canvas3D = dynamic(() => import("@/components/three/Canvas3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full animate-pulse rounded-xl bg-gray-100/50 dark:bg-white/5" />
-  ),
-});
 
 function CategoryCardStage({
-  icon,
   isActive,
   isSwapping,
-  showCanvas,
 }: {
   icon: CategoryIcon;
   isActive: boolean;
   isSwapping: boolean;
-  showCanvas: boolean;
 }) {
-  const stageRef = useRef<HTMLDivElement>(null);
-
   return (
     <div
-      ref={stageRef}
       className={`cat-3d-stage relative h-64 overflow-hidden ${
         isActive ? "is-active" : ""
       } ${isSwapping ? "is-swapping" : ""}`}
     >
       <span className="cat-3d-swap-sheen" aria-hidden />
-      {showCanvas ? (
-        <Canvas3D
-          variant="category"
-          categoryIcon={icon}
-          isActive={isActive}
-          pointerRef={stageRef}
-          className="absolute inset-0 h-full w-full"
-        />
-      ) : (
-        <div
-          className="absolute inset-0 bg-gradient-to-b from-[#1c1c1c] to-[#101010]"
-          aria-hidden
-        />
-      )}
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-[#1c1c1c] to-[#101010]"
+        aria-hidden
+      />
     </div>
   );
 }
@@ -68,7 +44,6 @@ function cardMotion(distance: number) {
 }
 
 export default function CategoryCarousel() {
-  const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { centerIndex, offsets, scrollToIndex } = useCoverflowCarousel(
     scrollRef,
@@ -146,7 +121,6 @@ export default function CategoryCarousel() {
             {categories.map((cat, index) => {
               const distance = offsets[index] ?? 0;
               const isActive = Math.abs(distance) < 0.35;
-              const showCanvas = isActive && !isMobile;
               const isSwapping = swappingIndex === index;
               const motion = cardMotion(distance);
               return (
@@ -172,7 +146,6 @@ export default function CategoryCarousel() {
                       icon={cat.icon}
                       isActive={isActive}
                       isSwapping={isSwapping}
-                      showCanvas={showCanvas}
                     />
                     <div className="p-5 text-center">
                       <h3

@@ -35,6 +35,12 @@ export default function RootLayout({
     <html lang="it" className={`${poppins.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <link
+          rel="preload"
+          href="/models/iphone.glb"
+          as="fetch"
+          crossOrigin="anonymous"
+        />
       </head>
       <body className="ls-loading-active min-h-full bg-black font-sans text-gray-100 antialiased transition-colors duration-500 dark:bg-black dark:text-gray-100">
         <LoadingScreen />
