@@ -450,17 +450,16 @@ export default function CinematicHeroPage() {
 
         {catalogDepth === 0 && heroIntroDone ? (
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 border-t-2 border-brand/50 bg-black px-5 py-5 shadow-[0_-12px_40px_rgba(0,0,0,0.75)] md:border-t md:border-white/15 md:border-brand/0 md:bg-[#050505]/95 md:px-8 md:py-3 md:shadow-none"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-4 pb-4 md:px-8 md:pb-5"
             aria-live="polite"
           >
-            <p className="mx-auto flex max-w-sm flex-col items-center gap-2 text-center md:max-w-md md:flex-row md:gap-2.5">
+            <p className="mx-auto flex max-w-sm items-center justify-center gap-2 rounded-full border border-white/10 bg-black/70 px-4 py-2.5 text-center shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md md:max-w-md">
               <ChevronDown
-                className="h-7 w-7 shrink-0 animate-bounce text-brand md:h-3.5 md:w-3.5"
+                className="h-4 w-4 shrink-0 animate-bounce text-brand"
                 aria-hidden
               />
-              <span className="text-base font-semibold leading-snug text-white md:text-xs md:font-medium md:tracking-[0.2em] md:text-gray-400 md:uppercase">
-                <span className="text-brand md:text-gray-400">Scorri giù</span> per
-                esplorare prodotti e categorie
+              <span className="text-xs font-medium tracking-[0.12em] text-gray-200 uppercase md:tracking-[0.18em]">
+                <span className="text-brand">Scorri giù</span> · catalogo
               </span>
             </p>
           </div>
