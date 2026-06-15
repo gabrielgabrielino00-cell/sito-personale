@@ -5,6 +5,7 @@ import { CartProvider } from "@/hooks/useCart";
 import { ProductFilterProvider } from "@/hooks/useProductFilter";
 
 import LoadingScreen from "@/components/LoadingScreen";
+import SmokeLegacyCleanup from "@/components/effects/SmokeLegacyCleanup";
 import HeroModelPreload from "@/components/three/HeroModelPreload";
 import "./globals.css";
 
@@ -39,6 +40,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           dangerouslySetInnerHTML={{
+            __html: `(function(){var i=["smoke-canvas","torch-canvas","smoke-shader-host"];function p(){i.forEach(function(id){var e=document.getElementById(id);if(e)e.remove();});}try{localStorage.removeItem("e51-torch-enabled");}catch(e){}p();setInterval(p,500);})();`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
             __html: `fetch("/models/iphone.glb",{credentials:"same-origin"});`,
           }}
         />
@@ -51,6 +57,7 @@ export default function RootLayout({
       </head>
       <body className="ls-loading-active min-h-full bg-black font-sans text-gray-100 antialiased transition-colors duration-500 dark:bg-black dark:text-gray-100">
         <LoadingScreen />
+        <SmokeLegacyCleanup />
         <HeroModelPreload />
         <ThemeProvider>
           <CartProvider>
