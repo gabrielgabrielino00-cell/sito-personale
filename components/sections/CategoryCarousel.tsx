@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { categories } from "@/lib/data";
 import SwapReveal from "@/components/motion/SwapReveal";
 import { useCoverflowCarousel } from "@/hooks/useCoverflowCarousel";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   requestCategoryFilter,
   requestSiteNavigation,
@@ -67,6 +68,7 @@ function cardMotion(distance: number) {
 }
 
 export default function CategoryCarousel() {
+  const isMobile = useIsMobile();
   const scrollRef = useRef<HTMLDivElement>(null);
   const { centerIndex, offsets, scrollToIndex } = useCoverflowCarousel(
     scrollRef,
@@ -144,7 +146,7 @@ export default function CategoryCarousel() {
             {categories.map((cat, index) => {
               const distance = offsets[index] ?? 0;
               const isActive = Math.abs(distance) < 0.35;
-              const showCanvas = isActive;
+              const showCanvas = isActive && !isMobile;
               const isSwapping = swappingIndex === index;
               const motion = cardMotion(distance);
               return (

@@ -144,7 +144,7 @@ function HeroCamera() {
 
 // ─── Cinematic lighting — subtle rim, no flashy pulses ───
 
-function PremiumLights() {
+function PremiumLights({ shadows }: { shadows: boolean }) {
   const rimRef = useRef<THREE.PointLight>(null!);
 
   useFrame(({ clock }) => {
@@ -164,8 +164,8 @@ function PremiumLights() {
         penumbra={0.72}
         intensity={1.85}
         color="#eef2f8"
-        castShadow
-        shadow-mapSize={[1024, 1024]}
+        castShadow={shadows}
+        shadow-mapSize={shadows ? [512, 512] : undefined}
       />
       <directionalLight position={[-6, 3, -4]} intensity={0.34} color="#3d5578" />
       <pointLight
@@ -182,18 +182,21 @@ function PremiumLights() {
 
 // ─── Post-processing: selective bloom only (no DOF — keeps phone sharp at every angle) ───
 
-function PremiumPostFX() {
+function PremiumPostFX({ enabled }: { enabled: boolean }) {
   const { anim } = usePremiumAnim();
   const [progress, setProgress] = useState(0);
   const last = useRef(0);
 
   useFrame(() => {
+    if (!enabled) return;
     const p = anim.timelineProgress.value;
     if (Math.abs(p - last.current) > 0.012) {
       last.current = p;
       setProgress(p);
     }
   });
+
+  if (!enabled) return null;
 
   return (
     <EffectComposer multisampling={4}>
@@ -243,10 +246,16 @@ function HeroScene({
         onDezoomReady={onDezoomReady}
       >
         <HeroCamera />
-        <PremiumLights />
-        <ContactShadows position={[0, 0.82, 0]} opacity={0.22} scale={10} blur={1.8} far={4} />
-        <Environment preset="studio" background={false} environmentIntensity={0.62} />
-        <PremiumPostFX />
+        <PremiumLights shadows={!isMobile} />
+        {isMobile ? null : (
+          <ContactShadows position={[0, 0.82, 0]} opacity={0.22} scale={10} blur={1.8} far={4} />
+        )}
+        <Environment
+          preset="studio"
+          background={false}
+          environmentIntensity={isMobile ? 0.42 : 0.62}
+        />
+        <PremiumPostFX enabled={!isMobile} />
         <DemandDriver />
       </PremiumHeroRig>
     </>
@@ -357,10 +366,11 @@ const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero
 
     const timer = window.setTimeout(() => {
       handleSceneReady();
+      handleIntroComplete();
     }, 600);
 
     return () => window.clearTimeout(timer);
-  }, [isMobile, webglEnabled, handleSceneReady]);
+  }, [isMobile, webglEnabled, handleSceneReady, handleIntroComplete]);
 
   const handleDezoomReady = useCallback(
     (api: {
@@ -399,15 +409,15 @@ const ThreeHero = forwardRef<ThreeHeroHandle, ThreeHeroProps>(function ThreeHero
         <MobileFallback onEnable={() => setWebglEnabled(true)} />
       ) : (
         <Canvas
-          dpr={isMobile ? [1.25, 2] : [1.5, 2.5]}
+          dpr={isMobile ? [1, 1.35] : [1.5, 2.5]}
           frameloop="demand"
           gl={{
-            antialias: true,
+            antialias: !isMobile,
             alpha: false,
             powerPreference: "high-performance",
             stencil: false,
           }}
-          shadows
+          shadows={!isMobile}
           camera={introCamera}
           className="h-full w-full"
         >

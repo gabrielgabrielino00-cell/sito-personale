@@ -13,6 +13,7 @@ import {
 } from "@/hooks/useHeroCatalogScrollTrigger";
 import type { ThreeHeroHandle } from "@/components/three/ThreeHero";
 import { preloadCategoryModels } from "@/components/three/preloadModels";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import CartPanel from "@/components/cart/CartPanel";
 import {
   SITE_NAVIGATE_EVENT,
@@ -59,6 +60,7 @@ export default function CinematicHeroPage() {
   const [productsRevealed, setProductsRevealed] = useState(false);
   const [catalogContentReady, setCatalogContentReady] = useState(false);
   const catalogMountedRef = useRef(false);
+  const isMobile = useIsMobile();
   const {
     runCatalogReveal,
     runCatalogHide,
@@ -76,25 +78,27 @@ export default function CinematicHeroPage() {
     let idleId: number | undefined;
     let introTimerId: number | undefined;
     let fallbackTimerId: number | undefined;
-    let preloadTimerId: number | undefined;
 
     const mountCatalog = () => {
       if (cancelled || catalogMountedRef.current) return;
       catalogMountedRef.current = true;
       setCatalogContentReady(true);
-      preloadTimerId = window.setTimeout(() => preloadCategoryModels(), 4000);
     };
+
+    const idleTimeout = isMobile ? 5200 : 2800;
+    const fallbackDelay = isMobile ? 9000 : 6500;
+    const introDelay = isMobile ? 2800 : 1400;
 
     const scheduleCatalog = () => {
       if (typeof requestIdleCallback !== "undefined") {
-        idleId = requestIdleCallback(mountCatalog, { timeout: 2800 });
+        idleId = requestIdleCallback(mountCatalog, { timeout: idleTimeout });
         return;
       }
-      introTimerId = window.setTimeout(mountCatalog, 1400);
+      introTimerId = window.setTimeout(mountCatalog, introDelay);
     };
 
     const onLoadingComplete = () => {
-      fallbackTimerId = window.setTimeout(mountCatalog, 6500);
+      fallbackTimerId = window.setTimeout(mountCatalog, fallbackDelay);
     };
 
     document.addEventListener("heroIntroComplete", scheduleCatalog, {
@@ -111,9 +115,14 @@ export default function CinematicHeroPage() {
       if (idleId !== undefined) cancelIdleCallback(idleId);
       if (introTimerId !== undefined) window.clearTimeout(introTimerId);
       if (fallbackTimerId !== undefined) window.clearTimeout(fallbackTimerId);
-      if (preloadTimerId !== undefined) window.clearTimeout(preloadTimerId);
     };
-  }, []);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!catalogContentReady || isMobile) return;
+    const preloadTimerId = window.setTimeout(() => preloadCategoryModels(), 5000);
+    return () => window.clearTimeout(preloadTimerId);
+  }, [catalogContentReady, isMobile]);
 
   const ensureCatalogContent = useCallback(async () => {
     if (catalogContentReady) {
@@ -173,7 +182,9 @@ export default function CinematicHeroPage() {
     if (!heroRef.current?.introComplete) return;
 
     transitionRunningRef.current = true;
-    preloadCategoryModels();
+    if (!isMobile) {
+      preloadCategoryModels();
+    }
     await ensureCatalogContent();
 
     const panel = catalogPanelRef.current;
@@ -202,7 +213,7 @@ export default function CinematicHeroPage() {
       transitionRunningRef.current = false;
       processPending();
     }
-  }, [ensureCatalogContent, processPending, runCatalogReveal]);
+  }, [ensureCatalogContent, isMobile, processPending, runCatalogReveal]);
 
   const runHide = useCallback(async () => {
     if (transitionRunningRef.current || depthRef.current !== 1) return;
@@ -339,6 +350,7 @@ export default function CinematicHeroPage() {
 
   useHeroCatalogScrollTrigger({
     viewportRef,
+    catalogPanelRef,
     depthRef,
     transitionRunningRef,
     pendingIntentRef,

@@ -61,6 +61,7 @@ export const IDLE = {
 };
 
 export const PARTICLE_COUNT = 110;
+export const PARTICLE_COUNT_MOBILE = 36;
 
 /** Camera pull-back on CTA — separate from INTRO, never mutates intro values */
 export const CATALOG_DEZOOM = {

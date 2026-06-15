@@ -36,6 +36,7 @@ import {
   INTRO,
   IPHONE_MODEL_PATH,
   PARTICLE_COUNT,
+  PARTICLE_COUNT_MOBILE,
   PHONE,
 } from "@/lib/cinematic/config";
 
@@ -183,17 +184,18 @@ function createBokehTexture() {
 // ─── Ambient bokeh — halo behind the phone, never on top ───
 
 function TechParticles() {
-  const { anim } = usePremiumAnim();
+  const { anim, isMobile } = usePremiumAnim();
+  const particleCount = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT;
   const pointsRef = useRef<THREE.Points>(null!);
   const materialRef = useRef<THREE.PointsMaterial>(null!);
 
   const { base, texture } = useMemo(() => {
-    const positions = new Float32Array(PARTICLE_COUNT * 3);
-    const colors = new Float32Array(PARTICLE_COUNT * 3);
-    const seeds = new Float32Array(PARTICLE_COUNT * 2);
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    const seeds = new Float32Array(particleCount * 2);
     const pivot = PHONE.pivotY;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < particleCount; i++) {
       const radius = 5.5 + Math.random() * 3.5;
       const angle = Math.random() * Math.PI * 2;
       const height = (Math.random() - 0.5) * 2.8;
@@ -213,7 +215,7 @@ function TechParticles() {
     }
 
     return { base: { positions, colors, seeds, pivot }, texture: createBokehTexture() };
-  }, []);
+  }, [particleCount]);
 
   useEffect(() => () => texture.dispose(), [texture]);
 
@@ -226,7 +228,7 @@ function TechParticles() {
       .position as THREE.BufferAttribute;
     const drift = 0.08 + progress * 0.14;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < particleCount; i++) {
       const seed = base.seeds[i * 2];
       const speed = base.seeds[i * 2 + 1];
       const bx = base.positions[i * 3];
