@@ -16,6 +16,7 @@ import type { ThreeHeroHandle } from "@/components/three/ThreeHero";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import CartPanel from "@/components/cart/CartPanel";
 import HeroBrandOverlay from "@/components/hero/HeroBrandOverlay";
+import HeroDesktop3DText from "@/components/hero/HeroDesktop3DText";
 import {
   SITE_NAVIGATE_EVENT,
   depthForDestination,
@@ -448,6 +449,7 @@ export default function CinematicHeroPage() {
         className={`fixed inset-x-0 z-30 min-h-[560px] overflow-hidden bg-[#050505] ${viewportTop} ${viewportHeight}`}
       >
         <ThreeHero ref={heroRef} fillViewport />
+        <HeroDesktop3DText visible={catalogDepth === 0 && heroIntroDone} />
         <CatalogOverlay
           panelRef={catalogPanelRef}
           scrollRef={catalogScrollRef}
