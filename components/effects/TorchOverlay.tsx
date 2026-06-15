@@ -3,67 +3,105 @@
 import { useEffect, useRef } from "react";
 import { useTorch } from "@/hooks/useTorch";
 
-const SMOKE_MAX = 140;
-const BURST_RADIUS = 200;
+const SMOKE_MAX = 220;
+const FADE_RATE = 0.014;
 
-class SmokePuff {
+function turbulence(x: number, y: number, t: number) {
+  return {
+    ax: Math.sin(y * 0.008 + t * 0.7) * 0.35 + Math.cos(x * 0.006 - t * 0.5) * 0.25,
+    ay: Math.cos(x * 0.007 + t * 0.6) * 0.28 + Math.sin(y * 0.005 + t * 0.4) * 0.2,
+  };
+}
+
+class SmokePlume {
   x: number;
   y: number;
   vx: number;
   vy: number;
   life: number;
   maxLife: number;
-  size: number;
+  radius: number;
   growth: number;
-  hue: number;
+  spin: number;
+  angle: number;
+  stretch: number;
+  lobes: Array<{ ox: number; oy: number; scale: number }>;
 
   constructor(x: number, y: number, burst = false) {
-    const spread = burst ? 90 : 45;
+    const spread = burst ? 55 : 28;
     this.x = x + (Math.random() - 0.5) * spread;
-    this.y = y + (Math.random() - 0.5) * spread;
-    this.vx = (Math.random() - 0.5) * (burst ? 1.8 : 0.9);
-    this.vy = -0.35 - Math.random() * (burst ? 1.4 : 0.8);
-    this.maxLife = burst ? 90 + Math.random() * 50 : 110 + Math.random() * 80;
+    this.y = y + (Math.random() - 0.5) * spread * 0.6;
+    this.vx = (Math.random() - 0.5) * (burst ? 1.1 : 0.55);
+    this.vy = -0.25 - Math.random() * (burst ? 0.9 : 0.45);
+    this.maxLife = burst ? 160 + Math.random() * 80 : 200 + Math.random() * 120;
     this.life = this.maxLife;
-    this.size = burst ? 28 + Math.random() * 36 : 18 + Math.random() * 28;
-    this.growth = 0.55 + Math.random() * 0.45;
-    this.hue = Math.random();
+    this.radius = burst ? 14 + Math.random() * 18 : 10 + Math.random() * 14;
+    this.growth = 0.28 + Math.random() * 0.22;
+    this.spin = (Math.random() - 0.5) * 0.012;
+    this.angle = Math.random() * Math.PI * 2;
+    this.stretch = 0.75 + Math.random() * 0.55;
+    this.lobes = Array.from({ length: 3 + Math.floor(Math.random() * 3) }, () => ({
+      ox: (Math.random() - 0.5) * 0.65,
+      oy: (Math.random() - 0.5) * 0.45,
+      scale: 0.45 + Math.random() * 0.55,
+    }));
   }
 
-  update() {
+  update(time: number) {
+    const turb = turbulence(this.x, this.y, time);
+    this.vx += turb.ax * 0.06;
+    this.vy += turb.ay * 0.04 - 0.018;
     this.x += this.vx;
     this.y += this.vy;
-    this.vx *= 0.985;
-    this.vy *= 0.992;
-    this.vx += (Math.random() - 0.5) * 0.08;
-    this.size += this.growth;
+    this.vx *= 0.988;
+    this.vy *= 0.99;
+    this.radius += this.growth;
+    this.angle += this.spin;
     this.life -= 1;
   }
 
   draw(ctx: CanvasRenderingContext2D) {
-    const t = this.life / this.maxLife;
-    const alpha = t * t * 0.22;
-    if (alpha < 0.01) return;
+    const age = 1 - this.life / this.maxLife;
+    const fadeIn = Math.min(1, (1 - this.life / this.maxLife) * 8);
+    const fadeOut = Math.pow(this.life / this.maxLife, 0.65);
+    const alpha = fadeIn * fadeOut * 0.11;
+    if (alpha < 0.004) return;
 
-    const r = this.size * (1.1 + (1 - t) * 0.35);
-    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, r);
-    const hot = this.hue > 0.55;
+    const r = this.radius * (1 + age * 1.8);
 
-    if (hot) {
-      grad.addColorStop(0, `rgba(255, 120, 30, ${alpha * 0.9})`);
-      grad.addColorStop(0.35, `rgba(255, 90, 15, ${alpha * 0.55})`);
-      grad.addColorStop(0.7, `rgba(180, 55, 10, ${alpha * 0.2})`);
-    } else {
-      grad.addColorStop(0, `rgba(255, 150, 60, ${alpha * 0.75})`);
-      grad.addColorStop(0.4, `rgba(255, 106, 0, ${alpha * 0.45})`);
-      grad.addColorStop(0.75, `rgba(140, 45, 8, ${alpha * 0.15})`);
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    ctx.scale(1, this.stretch);
+
+    for (const lobe of this.lobes) {
+      const lx = lobe.ox * r * 0.9;
+      const ly = lobe.oy * r * 0.7;
+      const lr = r * lobe.scale;
+      const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
+
+      if (age < 0.18) {
+        grad.addColorStop(0, `rgba(235, 200, 165, ${alpha * 1.1})`);
+        grad.addColorStop(0.2, `rgba(210, 155, 110, ${alpha * 0.85})`);
+        grad.addColorStop(0.45, `rgba(175, 130, 95, ${alpha * 0.5})`);
+      } else if (age < 0.45) {
+        grad.addColorStop(0, `rgba(195, 185, 175, ${alpha * 0.95})`);
+        grad.addColorStop(0.3, `rgba(165, 158, 150, ${alpha * 0.6})`);
+        grad.addColorStop(0.6, `rgba(130, 125, 120, ${alpha * 0.28})`);
+      } else {
+        grad.addColorStop(0, `rgba(155, 152, 148, ${alpha * 0.8})`);
+        grad.addColorStop(0.35, `rgba(115, 112, 108, ${alpha * 0.45})`);
+        grad.addColorStop(0.7, `rgba(85, 82, 78, ${alpha * 0.18})`);
+      }
+      grad.addColorStop(1, "rgba(60, 58, 55, 0)");
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+      ctx.fill();
     }
-    grad.addColorStop(1, "rgba(80, 30, 5, 0)");
 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -79,9 +117,10 @@ export default function TorchOverlay() {
     currentY: 0,
     prevX: 0,
     prevY: 0,
-    particles: [] as SmokePuff[],
+    particles: [] as SmokePlume[],
     ready: false,
     enabled: true,
+    time: 0,
   });
 
   useEffect(() => {
@@ -97,70 +136,74 @@ export default function TorchOverlay() {
     if (!context) return;
     const ctx: CanvasRenderingContext2D = context;
 
+    const buffer = document.createElement("canvas");
+    const bufferCtxRaw = buffer.getContext("2d", { alpha: true });
+    if (!bufferCtxRaw) return;
+    const bctx: CanvasRenderingContext2D = bufferCtxRaw;
+
     const state = stateRef.current;
     let frameId = 0;
 
-    function spawnSmoke(x: number, y: number, amount = 4, burst = false) {
+    function spawnSmoke(x: number, y: number, amount = 3, burst = false) {
       for (let i = 0; i < amount; i += 1) {
         if (state.particles.length < SMOKE_MAX) {
-          state.particles.push(new SmokePuff(x, y, burst));
+          state.particles.push(new SmokePlume(x, y, burst));
         }
       }
     }
 
     function updateParticles() {
       for (let i = state.particles.length - 1; i >= 0; i -= 1) {
-        state.particles[i].update();
+        state.particles[i].update(state.time);
         if (state.particles[i].life <= 0) state.particles.splice(i, 1);
       }
     }
 
-    function drawSmokeCloud(x: number, y: number) {
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
+    function fadeBuffer() {
+      bctx.globalCompositeOperation = "destination-out";
+      bctx.fillStyle = `rgba(0, 0, 0, ${FADE_RATE})`;
+      bctx.fillRect(0, 0, state.w, state.h);
+      bctx.globalCompositeOperation = "source-over";
+    }
 
-      const core = ctx.createRadialGradient(x, y, 0, x, y, BURST_RADIUS * 0.55);
-      core.addColorStop(0, "rgba(255, 130, 40, 0.14)");
-      core.addColorStop(0.45, "rgba(255, 106, 0, 0.08)");
-      core.addColorStop(1, "rgba(255, 80, 10, 0)");
-      ctx.fillStyle = core;
-      ctx.beginPath();
-      ctx.arc(x, y, BURST_RADIUS * 0.55, 0, Math.PI * 2);
-      ctx.fill();
+    function paintEmitter(x: number, y: number) {
+      bctx.save();
+      bctx.globalCompositeOperation = "screen";
 
-      const halo = ctx.createRadialGradient(
-        x,
-        y,
-        BURST_RADIUS * 0.2,
-        x,
-        y,
-        BURST_RADIUS,
-      );
-      halo.addColorStop(0, "rgba(255, 160, 70, 0.06)");
-      halo.addColorStop(0.6, "rgba(255, 90, 20, 0.04)");
-      halo.addColorStop(1, "rgba(120, 40, 5, 0)");
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(x, y, BURST_RADIUS, 0, Math.PI * 2);
-      ctx.fill();
+      const emit = bctx.createRadialGradient(x, y, 0, x, y, 42);
+      emit.addColorStop(0, "rgba(220, 175, 130, 0.09)");
+      emit.addColorStop(0.35, "rgba(190, 140, 95, 0.05)");
+      emit.addColorStop(1, "rgba(100, 80, 65, 0)");
+      bctx.fillStyle = emit;
+      bctx.beginPath();
+      bctx.arc(x, y, 42, 0, Math.PI * 2);
+      bctx.fill();
 
-      ctx.restore();
+      bctx.restore();
     }
 
     function drawFrame(x: number, y: number) {
-      ctx.clearRect(0, 0, state.w, state.h);
-
-      if (!state.enabled || !state.ready) return;
-
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-
-      for (const puff of state.particles) {
-        puff.draw(ctx);
+      if (!state.enabled || !state.ready) {
+        ctx.clearRect(0, 0, state.w, state.h);
+        bctx.clearRect(0, 0, state.w, state.h);
+        return;
       }
 
-      drawSmokeCloud(x, y);
-      ctx.restore();
+      fadeBuffer();
+
+      bctx.save();
+      bctx.globalCompositeOperation = "lighter";
+      for (const plume of state.particles) {
+        plume.draw(bctx);
+      }
+      bctx.restore();
+
+      paintEmitter(x, y);
+
+      ctx.clearRect(0, 0, state.w, state.h);
+      ctx.globalAlpha = 0.92;
+      ctx.drawImage(buffer, 0, 0);
+      ctx.globalAlpha = 1;
     }
 
     function resizeCanvas() {
@@ -168,6 +211,8 @@ export default function TorchOverlay() {
       state.h = window.innerHeight;
       canvasEl.width = state.w;
       canvasEl.height = state.h;
+      buffer.width = state.w;
+      buffer.height = state.h;
     }
 
     function onMouseMove(e: MouseEvent) {
@@ -184,21 +229,26 @@ export default function TorchOverlay() {
 
     function animate() {
       frameId = requestAnimationFrame(animate);
+      state.time += 0.016;
 
-      state.currentX += (state.targetX - state.currentX) * 0.18;
-      state.currentY += (state.targetY - state.currentY) * 0.18;
+      state.currentX += (state.targetX - state.currentX) * 0.14;
+      state.currentY += (state.targetY - state.currentY) * 0.14;
 
       const dx = state.currentX - state.prevX;
       const dy = state.currentY - state.prevY;
       const speed = Math.hypot(dx, dy);
 
       if (state.enabled && state.ready) {
-        const spawnRate = speed > 6 ? 5 : 3;
-        if (Math.random() < 0.82) {
-          spawnSmoke(state.currentX, state.currentY, spawnRate);
+        spawnSmoke(state.currentX, state.currentY + 6, speed > 4 ? 4 : 2);
+        if (Math.random() < 0.55) {
+          spawnSmoke(
+            state.currentX + (Math.random() - 0.5) * 20,
+            state.currentY + 8 + Math.random() * 10,
+            2,
+          );
         }
-        if (speed > 14 && Math.random() < 0.35) {
-          spawnSmoke(state.currentX, state.currentY, 6, true);
+        if (speed > 10 && Math.random() < 0.4) {
+          spawnSmoke(state.currentX, state.currentY + 4, 5, true);
         }
       }
 
@@ -217,7 +267,7 @@ export default function TorchOverlay() {
       state.currentY = state.targetY;
       state.prevX = state.currentX;
       state.prevY = state.currentY;
-      spawnSmoke(state.currentX, state.currentY, 18, true);
+      spawnSmoke(state.currentX, state.currentY + 8, 12, true);
     }
 
     resizeCanvas();
@@ -250,6 +300,7 @@ export default function TorchOverlay() {
       document.removeEventListener("loadingComplete", onLoadingDone);
       state.particles = [];
       ctx.clearRect(0, 0, state.w, state.h);
+      bctx.clearRect(0, 0, state.w, state.h);
     };
   }, []);
 
@@ -258,7 +309,7 @@ export default function TorchOverlay() {
       ref={canvasRef}
       id="smoke-canvas"
       aria-hidden
-      className={`pointer-events-none fixed top-0 left-0 z-[45] mix-blend-screen transition-opacity duration-400 ${
+      className={`pointer-events-none fixed top-0 left-0 z-[45] transition-opacity duration-400 ${
         enabled ? "opacity-100" : "opacity-0"
       }`}
     />
