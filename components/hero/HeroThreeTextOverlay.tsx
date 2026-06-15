@@ -8,33 +8,53 @@ import {
 } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 const ORANGE = 0xff6a00;
-const WARM_WHITE = 0xfff5e0;
+const ELECTRIC_BLUE = 0x00c3ff;
+const WARM_WHITE = 0xfff8f0;
 const FONT_URL = "/fonts/helvetiker_bold.typeface.json";
-const SWING_RAD = THREE.MathUtils.degToRad(15);
+const SWING_RAD = THREE.MathUtils.degToRad(20);
 
 function canvasDimensions() {
   const vw = window.innerWidth;
   if (vw < 640) {
-    return { width: Math.round(Math.min(280, vw * 0.78)), height: 118 };
+    return { width: Math.round(Math.min(300, vw * 0.82)), height: 200 };
   }
   if (vw < 1024) {
-    return { width: 380, height: 148 };
+    return { width: 400, height: 248 };
   }
   if (vw < 1440) {
-    return { width: 500, height: 172 };
+    return { width: 520, height: 300 };
   }
-  return { width: 560, height: 188 };
+  return { width: 580, height: 328 };
 }
 
 function textSize() {
   const vw = window.innerWidth;
-  if (vw < 640) return 2.1;
-  if (vw < 1024) return 2.8;
-  if (vw < 1440) return 3.6;
-  return 4.2;
+  if (vw < 640) return 1.65;
+  if (vw < 1024) return 2.15;
+  if (vw < 1440) return 2.75;
+  return 3.1;
 }
+
+function easeOutCubic(t: number) {
+  return 1 - (1 - t) ** 3;
+}
+
+function easeOutBack(t: number) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
+type LetterMesh = {
+  mesh: THREE.Mesh;
+  baseY: number;
+  delay: number;
+};
 
 type HeroThreeTextOverlayProps = {
   visible: boolean;
@@ -53,20 +73,55 @@ export default function HeroThreeTextOverlay({
     let animId = 0;
     let destroyed = false;
 
-    const glow = document.createElement("div");
-    glow.style.cssText = [
+    const chromaGlow = document.createElement("div");
+    chromaGlow.style.cssText = [
       "position:absolute",
-      "inset:18% 4% 8% 4%",
-      "border-radius:50%",
-      "background:radial-gradient(ellipse at center, rgba(255,106,0,0.42) 0%, rgba(255,106,0,0.14) 42%, transparent 72%)",
-      "filter:blur(28px)",
+      "inset:0",
+      "border-radius:12px",
       "pointer-events:none",
       "z-index:0",
+      "box-shadow:0 0 2px rgba(255,106,0,0.85), 0 0 48px rgba(255,106,0,0.28)",
+      "filter:drop-shadow(1px 0 0 rgba(255,106,0,0.12)) drop-shadow(-1px 0 0 rgba(0,195,255,0.08))",
     ].join(";");
-    host.appendChild(glow);
+    host.appendChild(chromaGlow);
+
+    const floorGlow = document.createElement("div");
+    floorGlow.style.cssText = [
+      "position:absolute",
+      "left:5%",
+      "right:5%",
+      "bottom:6%",
+      "height:38%",
+      "border-radius:50%",
+      "background:radial-gradient(ellipse at center, rgba(255,106,0,0.32) 0%, transparent 70%)",
+      "filter:blur(32px)",
+      "pointer-events:none",
+      "z-index:0",
+      "opacity:0.75",
+    ].join(";");
+    host.appendChild(floorGlow);
+
+    const shockwaveEl = document.createElement("div");
+    shockwaveEl.style.cssText = [
+      "position:absolute",
+      "left:50%",
+      "top:62%",
+      "width:40px",
+      "height:40px",
+      "margin:-20px 0 0 -20px",
+      "border-radius:50%",
+      "border:2px solid rgba(255,106,0,0.9)",
+      "box-shadow:0 0 24px rgba(255,106,0,0.65)",
+      "pointer-events:none",
+      "z-index:2",
+      "opacity:0",
+      "transform:scale(0.4)",
+    ].join(";");
+    host.appendChild(shockwaveEl);
 
     const canvas = document.createElement("canvas");
-    canvas.style.cssText = "display:block;width:100%;height:100%;position:relative;z-index:1;";
+    canvas.style.cssText =
+      "display:block;width:100%;height:100%;position:relative;z-index:1;background:transparent;";
     host.appendChild(canvas);
 
     const renderer = new THREE.WebGLRenderer({
@@ -77,7 +132,7 @@ export default function HeroThreeTextOverlay({
     });
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.5;
     disposables.push(() => renderer.dispose());
 
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -85,105 +140,209 @@ export default function HeroThreeTextOverlay({
     const envMap = pmrem.fromScene(envScene).texture;
 
     const scene = new THREE.Scene();
-    const textGroup = new THREE.Group();
-    scene.add(textGroup);
+    const rig = new THREE.Group();
+    scene.add(rig);
     scene.environment = envMap;
 
-    const ambient = new THREE.AmbientLight(0x0a0a0a, 0.55);
-    scene.add(ambient);
-
-    const orangeLight = new THREE.PointLight(ORANGE, 3.2, 240);
-    orangeLight.position.set(22, 14, 52);
-    scene.add(orangeLight);
-
-    const warmLight = new THREE.PointLight(WARM_WHITE, 2.4, 220);
-    warmLight.position.set(-18, 26, 44);
-    scene.add(warmLight);
-
-    const shadowLight = new THREE.PointLight(0x1a0800, 1.8, 180);
-    shadowLight.position.set(0, -32, 18);
-    scene.add(shadowLight);
-
-    const rimLight = new THREE.DirectionalLight(WARM_WHITE, 0.65);
-    rimLight.position.set(0, 8, 60);
-    scene.add(rimLight);
-
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
-    camera.position.set(0, 0, 78);
-
-    const materialSilver = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 0.8,
-      roughness: 0.2,
+    const chromeMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f6fa,
+      metalness: 1.0,
+      roughness: 0.05,
       envMap,
-      envMapIntensity: 1.1,
+      envMapIntensity: 1.45,
     });
 
-    const materialOrange = new THREE.MeshStandardMaterial({
+    const orangeMat = new THREE.MeshStandardMaterial({
       color: ORANGE,
       emissive: ORANGE,
-      emissiveIntensity: 0.38,
+      emissiveIntensity: 0.72,
       metalness: 1.0,
-      roughness: 0.15,
+      roughness: 0.05,
       envMap,
-      envMapIntensity: 1.35,
+      envMapIntensity: 1.65,
     });
 
-    disposables.push(() => materialSilver.dispose());
-    disposables.push(() => materialOrange.dispose());
+    disposables.push(() => chromeMat.dispose());
+    disposables.push(() => orangeMat.dispose());
     disposables.push(() => {
       envMap.dispose();
       pmrem.dispose();
-      envScene.dispose();
     });
 
-    function extrudeText(font: Font, label: string, size: number) {
+    const ambient = new THREE.AmbientLight(0x080808, 0.4);
+    scene.add(ambient);
+
+    const orangeLight = new THREE.PointLight(ORANGE, 4.2, 280);
+    const blueLight = new THREE.PointLight(ELECTRIC_BLUE, 2.6, 240);
+    const fillLight = new THREE.PointLight(WARM_WHITE, 2.8, 260);
+    const rimLight = new THREE.PointLight(0xffffff, 1.2, 200);
+    scene.add(orangeLight, blueLight, fillLight, rimLight);
+
+    const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 220);
+    camera.position.set(0, 1.2, 88);
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(52, 52),
+      new THREE.MeshStandardMaterial({
+        color: 0x050505,
+        metalness: 1.0,
+        roughness: 0.06,
+        transparent: true,
+        opacity: 0.28,
+        envMap,
+        envMapIntensity: 0.9,
+      }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -4.2;
+    rig.add(floor);
+    disposables.push(() => {
+      floor.geometry.dispose();
+      (floor.material as THREE.Material).dispose();
+    });
+
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(1, 1),
+      0.42,
+      0.55,
+      0.18,
+    );
+    composer.addPass(renderPass);
+    composer.addPass(bloomPass);
+    disposables.push(() => composer.dispose());
+
+    const letterMeshes: LetterMesh[] = [];
+    let numMesh: THREE.Mesh | null = null;
+    let numBaseY = 0;
+    let numBaseScale = 1;
+    let shockwaveMesh: THREE.Mesh | null = null;
+    let sparks: THREE.Points | null = null;
+    let sparkAngles: Float32Array | null = null;
+    let introAt = -1;
+    let shockwaveFired = false;
+
+    function extrude(
+      font: Font,
+      label: string,
+      size: number,
+      mat: THREE.MeshStandardMaterial,
+    ) {
       const geometry = new TextGeometry(label, {
         font,
         size,
-        depth: size * 0.26,
-        curveSegments: 16,
+        depth: size * 0.28,
+        curveSegments: 18,
         bevelEnabled: true,
-        bevelThickness: size * 0.04,
-        bevelSize: size * 0.022,
-        bevelSegments: 5,
+        bevelThickness: size * 0.045,
+        bevelSize: size * 0.024,
+        bevelSegments: 6,
       });
       geometry.computeBoundingBox();
       disposables.push(() => geometry.dispose());
-      return geometry;
+      return new THREE.Mesh(geometry, mat);
     }
 
-    function layoutBrand(font: Font) {
+    function buildLogo(font: Font) {
       const size = textSize();
-      const size51 = size * 1.12;
-      const gap = size * 0.1;
+      const size51 = size * 1.85;
+      const word = "Elettronica";
+      let cursorX = 0;
+      const letterGap = size * 0.02;
+      const lineY = size * 0.95;
 
-      const geoName = extrudeText(font, "Elettronica", size);
-      const geoNum = extrudeText(font, "51", size51);
+      word.split("").forEach((char, index) => {
+        const mesh = extrude(font, char, size, chromeMat);
+        const box = mesh.geometry.boundingBox!;
+        const charW = box.max.x - box.min.x;
+        mesh.position.x = cursorX - box.min.x;
+        mesh.position.y = lineY;
+        mesh.position.z = 0;
+        const baseY = lineY;
+        mesh.position.y = baseY + 5.5;
+        mesh.scale.y = 1.35;
+        rig.add(mesh);
+        letterMeshes.push({ mesh, baseY, delay: index * 0.11 });
+        cursorX += charW + letterGap;
+      });
 
-      const boxName = geoName.boundingBox!;
-      const boxNum = geoNum.boundingBox!;
-      const widthName = boxName.max.x - boxName.min.x;
-      const widthNum = boxNum.max.x - boxNum.min.x;
-      const totalWidth = widthName + gap + widthNum;
+      const wordWidth = cursorX - letterGap;
+      letterMeshes.forEach(({ mesh }) => {
+        mesh.position.x -= wordWidth / 2;
+      });
 
-      const meshName = new THREE.Mesh(geoName, materialSilver);
-      meshName.position.x = -totalWidth / 2 - boxName.min.x;
-      meshName.position.y = -(boxName.max.y + boxName.min.y) / 2;
+      numMesh = extrude(font, "51", size51, orangeMat);
+      const numBox = numMesh.geometry.boundingBox!;
+      const numW = numBox.max.x - numBox.min.x;
+      numBaseY = -size * 0.95;
+      numMesh.position.x = -numW / 2 - numBox.min.x;
+      numMesh.position.y = numBaseY + 8;
+      numMesh.position.z = 0.2;
+      numMesh.scale.setScalar(0.01);
+      numBaseScale = 1;
+      rig.add(numMesh);
 
-      const meshNum = new THREE.Mesh(geoNum, materialOrange);
-      meshNum.position.x = meshName.position.x + widthName + gap - boxNum.min.x;
-      meshNum.position.y = -(boxNum.max.y + boxNum.min.y) / 2 + size * 0.04;
+      const shockGeom = new THREE.RingGeometry(0.4, 0.55, 64);
+      const shockMat = new THREE.MeshBasicMaterial({
+        color: ORANGE,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+      });
+      shockwaveMesh = new THREE.Mesh(shockGeom, shockMat);
+      shockwaveMesh.position.set(0, numBaseY, 0.4);
+      shockwaveMesh.rotation.x = -Math.PI / 2;
+      rig.add(shockwaveMesh);
+      disposables.push(() => {
+        shockGeom.dispose();
+        shockMat.dispose();
+      });
 
-      textGroup.add(meshName, meshNum);
+      const sparkCount = 48;
+      const positions = new Float32Array(sparkCount * 3);
+      sparkAngles = new Float32Array(sparkCount);
+      for (let i = 0; i < sparkCount; i += 1) {
+        sparkAngles[i] = (i / sparkCount) * Math.PI * 2;
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = numBaseY;
+        positions[i * 3 + 2] = 0;
+      }
+      const sparkGeom = new THREE.BufferGeometry();
+      sparkGeom.setAttribute(
+        "position",
+        new THREE.BufferAttribute(positions, 3),
+      );
+      const sparkMat = new THREE.PointsMaterial({
+        color: ORANGE,
+        size: 0.14,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true,
+      });
+      sparks = new THREE.Points(sparkGeom, sparkMat);
+      rig.add(sparks);
+      disposables.push(() => {
+        sparkGeom.dispose();
+        sparkMat.dispose();
+      });
+
+      introAt = clock.getElapsedTime();
     }
 
     function resize() {
       const { width, height } = canvasDimensions();
       host.style.width = `${width}px`;
       host.style.height = `${height}px`;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const dpr = Math.min(window.devicePixelRatio, 2);
+      renderer.setPixelRatio(dpr);
       renderer.setSize(width, height, false);
+      composer.setPixelRatio(dpr);
+      composer.setSize(width, height);
+      bloomPass.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
     }
@@ -192,34 +351,105 @@ export default function HeroThreeTextOverlay({
     window.addEventListener("resize", resize);
     disposables.push(() => window.removeEventListener("resize", resize));
 
-    const loader = new FontLoader();
-    loader.load(
-      FONT_URL,
-      (font) => {
-        if (destroyed) return;
-        layoutBrand(font);
-      },
-      undefined,
-      () => {
-        /* silent fail — transparent canvas */
-      },
-    );
-
     const clock = new THREE.Clock();
-    let glowPhase = 0;
+
+    const loader = new FontLoader();
+    loader.load(FONT_URL, (font) => {
+      if (destroyed) return;
+      buildLogo(font);
+    });
 
     const animate = () => {
       if (destroyed) return;
       animId = requestAnimationFrame(animate);
 
       const t = clock.getElapsedTime();
-      textGroup.rotation.y = Math.sin(t * 0.42) * SWING_RAD;
-      textGroup.position.y = Math.sin(t * 0.85) * 0.32;
+      const sinceIntro = introAt >= 0 ? t - introAt : 0;
 
-      glowPhase = 0.72 + Math.sin(t * 0.85) * 0.14;
-      glow.style.opacity = String(glowPhase);
+      letterMeshes.forEach(({ mesh, baseY, delay }) => {
+        const local = Math.max(0, sinceIntro - delay);
+        const progress = Math.min(1, local / 0.48);
+        const eased = easeOutCubic(progress);
+        mesh.position.y = baseY + (1 - eased) * 5.5;
+        mesh.scale.y = 1.35 - eased * 0.35;
+        mesh.visible = progress > 0.02;
+      });
 
-      renderer.render(scene, camera);
+      const slamDelay = letterMeshes.length * 0.11 + 0.25;
+      if (numMesh) {
+        const slamLocal = Math.max(0, sinceIntro - slamDelay);
+        const slamP = Math.min(1, slamLocal / 0.38);
+        if (slamP > 0) {
+          const eased = easeOutBack(slamP);
+          numMesh.position.y = numBaseY + (1 - eased) * 8;
+          const s = Math.max(0.01, eased * numBaseScale);
+          numMesh.scale.setScalar(s);
+        }
+
+        if (slamP >= 1 && !shockwaveFired) {
+          shockwaveFired = true;
+          shockwaveEl.style.transition =
+            "transform 0.85s cubic-bezier(0.16,1,0.3,1), opacity 0.85s ease-out";
+          shockwaveEl.style.opacity = "1";
+          shockwaveEl.style.transform = "scale(5)";
+          window.setTimeout(() => {
+            shockwaveEl.style.opacity = "0";
+          }, 120);
+        }
+      }
+
+      if (shockwaveMesh && sinceIntro > slamDelay) {
+        const waveT = Math.min(1, (sinceIntro - slamDelay - 0.05) / 0.7);
+        if (waveT > 0 && waveT < 1) {
+          const scale = 1 + waveT * 7;
+          shockwaveMesh.scale.set(scale, scale, scale);
+          (shockwaveMesh.material as THREE.MeshBasicMaterial).opacity =
+            (1 - waveT) * 0.75;
+        }
+      }
+
+      const orbitR = 28;
+      orangeLight.position.set(
+        Math.cos(t * 0.34) * orbitR,
+        10 + Math.sin(t * 0.52) * 6,
+        Math.sin(t * 0.34) * orbitR + 42,
+      );
+      blueLight.position.set(
+        Math.cos(t * 0.28 + 2.1) * (orbitR * 0.85),
+        6 + Math.sin(t * 0.41 + 1) * 8,
+        Math.sin(t * 0.28 + 2.1) * (orbitR * 0.85) + 36,
+      );
+      fillLight.position.set(
+        Math.sin(t * 0.22) * 14,
+        22,
+        48 + Math.cos(t * 0.22) * 10,
+      );
+      rimLight.position.set(0, -8, 30);
+
+      if (sinceIntro > slamDelay + 0.35) {
+        rig.rotation.y = Math.sin(t * 0.38) * SWING_RAD;
+        rig.position.y = Math.sin(t * 0.72) * 0.38;
+      }
+
+      if (sparks && sparkAngles && numMesh) {
+        const pos = sparks.geometry.attributes.position as THREE.BufferAttribute;
+        const orbit = 2.8 + Math.sin(t * 0.6) * 0.35;
+        for (let i = 0; i < sparkAngles.length; i += 1) {
+          const a = sparkAngles[i] + t * 0.45;
+          const yOff = Math.sin(a * 2.2) * 0.55;
+          pos.setXYZ(
+            i,
+            numMesh.position.x + Math.cos(a) * orbit,
+            numBaseY + yOff + Math.sin(t + i) * 0.12,
+            Math.sin(a) * orbit * 0.55,
+          );
+        }
+        pos.needsUpdate = true;
+      }
+
+      floorGlow.style.opacity = String(0.62 + Math.sin(t * 0.72) * 0.14);
+
+      composer.render();
     };
     animate();
 
@@ -227,8 +457,10 @@ export default function HeroThreeTextOverlay({
       destroyed = true;
       cancelAnimationFrame(animId);
       disposables.reverse().forEach((dispose) => dispose());
-      textGroup.clear();
-      glow.remove();
+      rig.clear();
+      chromaGlow.remove();
+      floorGlow.remove();
+      shockwaveEl.remove();
       canvas.remove();
     };
   }, [visible]);
