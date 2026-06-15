@@ -1,4 +1,5 @@
 type LogoSize = "sm" | "md" | "lg" | "xl";
+type LogoVariant = "full" | "wordmark" | "icon";
 
 const sizeClass: Record<LogoSize, string> = {
   sm: "h-8",
@@ -9,19 +10,88 @@ const sizeClass: Record<LogoSize, string> = {
 
 interface LogoProps {
   size?: LogoSize;
+  variant?: LogoVariant;
   className?: string;
 }
 
-export default function Logo({ size = "md", className }: LogoProps) {
-  const width = 200;
-  const height = 52;
-
+export default function Logo({
+  size = "md",
+  variant = "full",
+  className,
+}: LogoProps) {
   const wordSize =
     size === "xl" ? 22 : size === "lg" ? 18 : size === "md" ? 15 : 13;
 
+  if (variant === "icon") {
+    return (
+      <svg
+        viewBox="0 0 36 36"
+        role="img"
+        aria-label="Elettronica51"
+        className={["w-auto shrink-0", sizeClass[size], className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <rect
+          x="0.75"
+          y="0.75"
+          width="34.5"
+          height="34.5"
+          rx="5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.25"
+          opacity="0.88"
+        />
+        <rect x="6" y="30" width="24" height="2" rx="1" fill="#f97316" />
+        <text
+          x="18"
+          y="22"
+          textAnchor="middle"
+          fill="currentColor"
+          fontFamily="var(--font-poppins), system-ui, sans-serif"
+          fontWeight="600"
+          fontSize="13"
+          letterSpacing="0.06em"
+        >
+          51
+        </text>
+      </svg>
+    );
+  }
+
+  if (variant === "wordmark") {
+    return (
+      <svg
+        viewBox="0 0 168 28"
+        role="img"
+        aria-label="Elettronica51"
+        className={["w-auto shrink-0", sizeClass[size], className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <text
+          x="0"
+          y="18"
+          fill="currentColor"
+          fontFamily="var(--font-poppins), system-ui, sans-serif"
+          fontWeight="500"
+          fontSize={wordSize}
+          letterSpacing="-0.025em"
+        >
+          Elettronica
+          <tspan fill="#f97316" fontWeight="700" letterSpacing="-0.04em">
+            51
+          </tspan>
+        </text>
+        <rect x="0" y="22" width="28" height="1.5" rx="0.75" fill="#f97316" />
+      </svg>
+    );
+  }
+
   return (
     <svg
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox="0 0 220 52"
       role="img"
       aria-label="Elettronica51"
       className={["w-auto shrink-0", sizeClass[size], className]
@@ -55,7 +125,7 @@ export default function Logo({ size = "md", className }: LogoProps) {
         </text>
       </g>
 
-      <g transform="translate(48, 28)">
+      <g transform="translate(62, 28)">
         <text
           y="0"
           fill="currentColor"

@@ -40,7 +40,7 @@ export default function Header() {
           href="/"
           className="shrink-0 text-white transition-opacity hover:opacity-90"
         >
-          <Logo size="md" className="md:h-12" />
+          <Logo size="md" variant="wordmark" className="md:h-12" />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">
