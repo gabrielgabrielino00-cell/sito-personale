@@ -1,29 +1,19 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
-import {
-  FontLoader,
-  type Font,
-} from "three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import { Bebas_Neue, Montserrat } from "next/font/google";
 
-const FONT_URL = "/fonts/helvetiker_bold.typeface.json";
-const PARTICLE_COUNT = 120;
+const bebas = Bebas_Neue({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+});
 
-function canvasDimensions() {
-  const vw = window.innerWidth;
-  if (vw < 640) {
-    return { width: Math.round(Math.min(300, vw * 0.82)), height: 200 };
-  }
-  if (vw < 1024) {
-    return { width: 400, height: 248 };
-  }
-  if (vw < 1440) {
-    return { width: 520, height: 300 };
-  }
-  return { width: 580, height: 328 };
-}
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: "900",
+  display: "swap",
+});
 
 type HeroThreeTextOverlayProps = {
   visible: boolean;
@@ -32,327 +22,374 @@ type HeroThreeTextOverlayProps = {
 export default function HeroThreeTextOverlay({
   visible,
 }: HeroThreeTextOverlayProps) {
-  const hostRef = useRef<HTMLDivElement>(null);
+  const embersRef = useRef<HTMLDivElement>(null);
+  const word51Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!visible || !hostRef.current) return;
+    if (!visible || !embersRef.current) return;
 
-    const host = hostRef.current;
-    let animId = 0;
-    let destroyed = false;
-    const disposables: Array<() => void> = [];
+    const container = embersRef.current;
+    container.replaceChildren();
 
-    const bloom = document.createElement("div");
-    bloom.style.cssText = [
-      "position:absolute",
-      "top:50%",
-      "left:50%",
-      "transform:translate(-50%,-50%)",
-      "width:min(420px,92%)",
-      "height:min(180px,72%)",
-      "background:radial-gradient(ellipse at center, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 75%)",
-      "filter:blur(32px)",
-      "pointer-events:none",
-      "z-index:0",
-      "animation:bloomPulse 3s ease-in-out infinite",
-    ].join(";");
-    host.appendChild(bloom);
+    for (let i = 0; i < 28; i += 1) {
+      const ember = document.createElement("div");
+      ember.className = "e51pl-ember";
+      const size = 2 + Math.random() * 5;
+      const startX = 20 + Math.random() * 60;
+      const startY = 40 + Math.random() * 30;
+      const dx = (Math.random() - 0.5) * 200;
+      const dy = -60 - Math.random() * 140;
+      const dur = 2.5 + Math.random() * 3.5;
+      const delay = Math.random() * 5;
 
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes bloomPulse {
-        0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-        50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
-      }
-    `;
-    host.appendChild(style);
-
-    const canvas = document.createElement("canvas");
-    canvas.style.cssText =
-      "display:block;width:100%;height:100%;position:relative;z-index:1;background:transparent;";
-    host.appendChild(canvas);
-
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: true,
-      powerPreference: "high-performance",
-    });
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.8;
-    renderer.shadowMap.enabled = true;
-    disposables.push(() => renderer.dispose());
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera.position.set(0, 1.2, 9);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
-
-    const orangeLight = new THREE.PointLight(0xff6a00, 6, 18);
-    orangeLight.position.set(3, 3, 4);
-    scene.add(orangeLight);
-
-    const blueLight = new THREE.PointLight(0x00c3ff, 3, 18);
-    blueLight.position.set(-4, 2, 3);
-    scene.add(blueLight);
-
-    const rimLight = new THREE.PointLight(0xfff5e0, 2, 12);
-    rimLight.position.set(0, -3, 5);
-    scene.add(rimLight);
-
-    const floorGeo = new THREE.PlaneGeometry(14, 5);
-    const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x111111,
-      metalness: 0.95,
-      roughness: 0.15,
-      opacity: 0.55,
-      transparent: true,
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -2.1;
-    scene.add(floor);
-    disposables.push(() => {
-      floorGeo.dispose();
-      floorMat.dispose();
-    });
-
-    const group = new THREE.Group();
-    scene.add(group);
-
-    const matChrome = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 1.0,
-      roughness: 0.08,
-      envMapIntensity: 1.2,
-    });
-    const matOrange = new THREE.MeshStandardMaterial({
-      color: 0xff6a00,
-      metalness: 1.0,
-      roughness: 0.06,
-      emissive: new THREE.Color(0xff3300),
-      emissiveIntensity: 0.45,
-    });
-    disposables.push(() => matChrome.dispose());
-    disposables.push(() => matOrange.dispose());
-
-    function makeText(
-      font: Font,
-      text: string,
-      mat: THREE.MeshStandardMaterial,
-      size: number,
-      depth: number,
-    ) {
-      const geo = new TextGeometry(text, {
-        font,
-        size,
-        depth,
-        curveSegments: 14,
-        bevelEnabled: true,
-        bevelThickness: 0.04,
-        bevelSize: 0.025,
-        bevelSegments: 8,
-      });
-      geo.computeBoundingBox();
-      const cx =
-        (geo.boundingBox!.max.x - geo.boundingBox!.min.x) / 2 +
-        geo.boundingBox!.min.x;
-      geo.translate(-cx, 0, 0);
-      disposables.push(() => geo.dispose());
-      return new THREE.Mesh(geo, mat);
+      ember.style.cssText = `
+        width:${size}px;
+        height:${size}px;
+        left:${startX}%;
+        top:${startY}%;
+        --dx:${dx}px;
+        --dy:${dy}px;
+        animation-duration:${dur}s;
+        animation-delay:${delay}s;
+        box-shadow:0 0 ${size * 2}px rgba(255,150,0,0.8);
+      `;
+      container.appendChild(ember);
     }
 
-    let enterAnim: ((delta: number) => boolean) | null = null;
-    let enterDone = false;
+    return () => container.replaceChildren();
+  }, [visible]);
 
-    const fontLoader = new FontLoader();
-    fontLoader.load(FONT_URL, (font) => {
-      if (destroyed) return;
+  useEffect(() => {
+    if (!visible || !word51Ref.current) return;
 
-      const topMesh = makeText(font, "Elettronica", matChrome, 0.72, 0.22);
-      topMesh.position.y = 0.72;
-      group.add(topMesh);
+    const el51 = word51Ref.current;
+    let bgPos = 0;
+    let frameId = 0;
 
-      const botMesh = makeText(font, "51", matOrange, 1.35, 0.42);
-      botMesh.position.y = -0.88;
-      group.add(botMesh);
-
-      group.scale.set(0.01, 0.01, 0.01);
-      let t = 0;
-      const enterDur = 1.4;
-      enterAnim = (delta: number) => {
-        t += delta;
-        const p = Math.min(t / enterDur, 1);
-        const e = 1 - (1 - p) ** 4;
-        group.scale.setScalar(e);
-        group.rotation.y = (1 - e) * -0.6;
-        return p >= 1;
-      };
-    });
-
-    const pPositions = new Float32Array(PARTICLE_COUNT * 3);
-    const pVelocities: Array<{
-      speed: number;
-      angle: number;
-      yDrift: number;
-      r: number;
-    }> = [];
-
-    for (let i = 0; i < PARTICLE_COUNT; i += 1) {
-      const r = 2.2 + Math.random() * 1.8;
-      const a = Math.random() * Math.PI * 2;
-      pPositions[i * 3] = Math.cos(a) * r;
-      pPositions[i * 3 + 1] = (Math.random() - 0.5) * 3.5;
-      pPositions[i * 3 + 2] = Math.sin(a) * r * 0.4;
-      pVelocities.push({
-        speed: 0.004 + Math.random() * 0.008,
-        angle: a,
-        yDrift: (Math.random() - 0.5) * 0.012,
-        r,
-      });
-    }
-
-    const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute("position", new THREE.BufferAttribute(pPositions, 3));
-    const pMat = new THREE.PointsMaterial({
-      color: 0xff6a00,
-      size: 0.045,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const particles = new THREE.Points(pGeo, pMat);
-    scene.add(particles);
-    disposables.push(() => {
-      pGeo.dispose();
-      pMat.dispose();
-    });
-
-    const ringGeo = new THREE.RingGeometry(0.1, 0.18, 64);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xff6a00,
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -2.09;
-    scene.add(ring);
-    disposables.push(() => {
-      ringGeo.dispose();
-      ringMat.dispose();
-    });
-
-    let ringActive = false;
-    let ringT = 0;
-    const ringTimer = window.setTimeout(() => {
-      if (!destroyed) {
-        ringActive = true;
-        ringT = 0;
-      }
-    }, 1500);
-
-    function resize() {
-      const { width, height } = canvasDimensions();
-      host.style.width = `${width}px`;
-      host.style.height = `${height}px`;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    }
-
-    resize();
-    window.addEventListener("resize", resize);
-    disposables.push(() => window.removeEventListener("resize", resize));
-
-    const clock = new THREE.Clock();
-
-    const animate = () => {
-      if (destroyed) return;
-      animId = requestAnimationFrame(animate);
-
-      const delta = clock.getDelta();
-      const elapsed = clock.getElapsedTime();
-
-      if (!enterDone && enterAnim) {
-        enterDone = enterAnim(delta);
-      }
-
-      if (group.children.length) {
-        group.rotation.y = Math.sin(elapsed * 0.5) * 0.32;
-        group.position.y = Math.sin(elapsed * 0.7) * 0.14;
-      }
-
-      const la = elapsed * 0.6;
-      orangeLight.position.set(
-        Math.cos(la) * 5,
-        3 + Math.sin(la * 0.5),
-        Math.sin(la) * 4,
-      );
-      blueLight.position.set(
-        Math.cos(la + Math.PI) * 5,
-        2,
-        Math.sin(la + Math.PI) * 4,
-      );
-
-      const pos = pGeo.attributes.position.array as Float32Array;
-      for (let i = 0; i < PARTICLE_COUNT; i += 1) {
-        const v = pVelocities[i];
-        v.angle += v.speed;
-        pos[i * 3] = Math.cos(v.angle) * v.r;
-        pos[i * 3 + 1] += v.yDrift;
-        pos[i * 3 + 2] = Math.sin(v.angle) * v.r * 0.4;
-        if (pos[i * 3 + 1] > 2.5) pos[i * 3 + 1] = -2.5;
-        if (pos[i * 3 + 1] < -2.5) pos[i * 3 + 1] = 2.5;
-      }
-      pGeo.attributes.position.needsUpdate = true;
-
-      if (ringActive) {
-        ringT += delta;
-        const rp = Math.min(ringT / 1.2, 1);
-        const scale = 1 + rp * 28;
-        ring.scale.set(scale, scale, scale);
-        ringMat.opacity = (1 - rp) * 0.7;
-        if (rp >= 1) ringActive = false;
-      }
-
-      renderer.render(scene, camera);
+    const animBg = () => {
+      bgPos += 0.15;
+      el51.style.backgroundPosition = `${bgPos % 200}% 50%`;
+      frameId = requestAnimationFrame(animBg);
     };
-    animate();
 
-    return () => {
-      destroyed = true;
-      cancelAnimationFrame(animId);
-      window.clearTimeout(ringTimer);
-      disposables.reverse().forEach((dispose) => dispose());
-      group.clear();
-      scene.clear();
-      bloom.remove();
-      style.remove();
-      canvas.remove();
-    };
+    frameId = requestAnimationFrame(animBg);
+    return () => cancelAnimationFrame(frameId);
   }, [visible]);
 
   if (!visible) return null;
 
   return (
     <div
-      ref={hostRef}
-      className="pointer-events-none absolute"
+      className="e51pl-host pointer-events-none absolute hidden lg:block"
       style={{
         right: "5%",
         top: "50%",
         transform: "translateY(-50%)",
         zIndex: 10,
-        background: "transparent",
+        width: "clamp(260px, 28vw, 420px)",
       }}
       aria-hidden
-    />
+    >
+      <style>{`
+        .e51pl-host {
+          background: transparent;
+        }
+
+        .e51pl-scene {
+          position: relative;
+          perspective: 900px;
+          perspective-origin: 50% 50%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0;
+          animation: e51pl-floatY 4s ease-in-out infinite;
+        }
+
+        @keyframes e51pl-floatY {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-14px); }
+        }
+
+        .e51pl-logo-3d {
+          transform-style: preserve-3d;
+          animation: e51pl-rotate3d 8s ease-in-out infinite;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        @keyframes e51pl-rotate3d {
+          0% { transform: rotateY(-18deg) rotateX(4deg); }
+          50% { transform: rotateY(18deg) rotateX(-2deg); }
+          100% { transform: rotateY(-18deg) rotateX(4deg); }
+        }
+
+        .e51pl-word-elettronica {
+          font-weight: 900;
+          font-size: clamp(28px, 3.2vw, 58px);
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          line-height: 1;
+          background: linear-gradient(
+            160deg,
+            #ffffff 0%,
+            #d0d8e8 18%,
+            #ffffff 30%,
+            #8899bb 45%,
+            #ffffff 58%,
+            #aabbcc 72%,
+            #ffffff 85%,
+            #ccd4e4 100%
+          );
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          filter: url(#e51pl-silverGlow) drop-shadow(0 0 18px rgba(180, 210, 255, 0.25));
+          position: relative;
+          transform-style: preserve-3d;
+          animation: e51pl-entranceTop 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes e51pl-entranceTop {
+          from { opacity: 0; transform: translateY(-40px) rotateX(40deg); }
+          to { opacity: 1; transform: translateY(0) rotateX(0deg); }
+        }
+
+        .e51pl-divider {
+          width: 60%;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, #ff6a00, #ffb347, #ff6a00, transparent);
+          margin: 2px 0 -4px;
+          opacity: 0;
+          animation: e51pl-fadeIn 0.6s 1.2s ease both;
+          box-shadow: 0 0 12px 2px rgba(255, 106, 0, 0.5);
+        }
+
+        .e51pl-word-51-wrap {
+          position: relative;
+          display: block;
+          line-height: 1;
+        }
+
+        .e51pl-word-51 {
+          font-size: clamp(88px, 12vw, 200px);
+          letter-spacing: -0.02em;
+          line-height: 0.85;
+          position: relative;
+          background: linear-gradient(
+            170deg,
+            #ffd580 0%,
+            #ff8c00 15%,
+            #ff6a00 30%,
+            #ff4500 50%,
+            #ff6a00 65%,
+            #ff9500 80%,
+            #ffb347 92%,
+            #ff6a00 100%
+          );
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          background-size: 200% 200%;
+          filter: url(#e51pl-fireGlow) drop-shadow(0 0 40px rgba(255, 106, 0, 0.8))
+            drop-shadow(0 0 80px rgba(255, 60, 0, 0.4));
+          animation:
+            e51pl-entranceBot 1.4s 0.25s cubic-bezier(0.16, 1, 0.3, 1) both,
+            e51pl-shimmer 4s 2s ease-in-out infinite;
+        }
+
+        @keyframes e51pl-entranceBot {
+          from {
+            opacity: 0;
+            transform: scale(0.6) translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        @keyframes e51pl-shimmer {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+
+        .e51pl-word-51-shadow {
+          position: absolute;
+          inset: 0;
+          font-size: inherit;
+          letter-spacing: -0.02em;
+          line-height: 0.85;
+          transform: translate(4px, 6px) translateZ(-20px);
+          -webkit-text-fill-color: #5a1800;
+          z-index: -1;
+          pointer-events: none;
+          opacity: 0;
+          animation: e51pl-fadeIn 0.1s 1.5s both;
+        }
+
+        .e51pl-tagline {
+          font-weight: 900;
+          font-size: clamp(8px, 0.9vw, 12px);
+          letter-spacing: 0.55em;
+          text-transform: uppercase;
+          color: rgba(255, 106, 0, 0.7);
+          margin-top: 10px;
+          opacity: 0;
+          animation: e51pl-fadeIn 0.8s 1.6s ease both;
+        }
+
+        @keyframes e51pl-fadeIn {
+          to { opacity: 1; }
+        }
+
+        .e51pl-halo {
+          position: absolute;
+          width: 320px;
+          height: 160px;
+          left: 50%;
+          top: 55%;
+          transform: translate(-50%, -50%);
+          background: radial-gradient(
+            ellipse at center,
+            rgba(255, 106, 0, 0.35) 0%,
+            rgba(255, 60, 0, 0.15) 40%,
+            transparent 70%
+          );
+          filter: blur(28px);
+          pointer-events: none;
+          z-index: -1;
+          animation: e51pl-haloPulse 3.5s ease-in-out infinite;
+        }
+
+        @keyframes e51pl-haloPulse {
+          0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+        }
+
+        .e51pl-embers {
+          position: absolute;
+          inset: -60px;
+          pointer-events: none;
+          overflow: hidden;
+          z-index: -1;
+        }
+
+        .e51pl-ember {
+          position: absolute;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ffd580, #ff6a00, transparent);
+          animation: e51pl-drift linear infinite;
+          opacity: 0;
+        }
+
+        @keyframes e51pl-drift {
+          0% { transform: translate(0, 0) scale(1); opacity: 0; }
+          10% { opacity: 0.9; }
+          90% { opacity: 0.4; }
+          100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .e51pl-scene,
+          .e51pl-logo-3d,
+          .e51pl-halo,
+          .e51pl-word-elettronica,
+          .e51pl-word-51,
+          .e51pl-divider,
+          .e51pl-tagline,
+          .e51pl-ember {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
+      <svg
+        className="absolute h-0 w-0"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden
+      >
+        <defs>
+          <filter
+            id="e51pl-silverGlow"
+            x="-30%"
+            y="-30%"
+            width="160%"
+            height="160%"
+          >
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feColorMatrix
+              in="blur"
+              type="matrix"
+              values="0.6 0.7 1 0 0.1  0.6 0.7 1 0 0.1  0.8 0.9 1 0 0.2  0 0 0 1 0"
+              result="colored"
+            />
+            <feMerge>
+              <feMergeNode in="colored" />
+              <feMergeNode in="colored" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter
+            id="e51pl-fireGlow"
+            x="-40%"
+            y="-40%"
+            width="180%"
+            height="180%"
+          >
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation="6"
+              result="blur1"
+            />
+            <feGaussianBlur
+              in="SourceGraphic"
+              stdDeviation="14"
+              result="blur2"
+            />
+            <feColorMatrix
+              in="blur1"
+              type="matrix"
+              values="1.5 0.3 0 0 0.1  0.3 0.1 0 0 0  0 0 0 0 0  0 0 0 1 0"
+              result="fire1"
+            />
+            <feColorMatrix
+              in="blur2"
+              type="matrix"
+              values="1.2 0.2 0 0 0.05  0.2 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0"
+              result="fire2"
+            />
+            <feMerge>
+              <feMergeNode in="fire2" />
+              <feMergeNode in="fire1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+
+      <div className="e51pl-scene">
+        <div className="e51pl-halo" />
+        <div ref={embersRef} className="e51pl-embers" />
+
+        <div className="e51pl-logo-3d">
+          <div className={`e51pl-word-elettronica ${montserrat.className}`}>
+            Elettronica
+          </div>
+          <div className="e51pl-divider" />
+          <div className={`e51pl-word-51-wrap ${bebas.className}`}>
+            <div className="e51pl-word-51-shadow">51</div>
+            <div ref={word51Ref} className="e51pl-word-51">
+              51
+            </div>
+          </div>
+          <div className={`e51pl-tagline ${montserrat.className}`}>
+            Tech · Premium · Velocità
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
