@@ -46,12 +46,17 @@ export const CAMERA_MOBILE = {
  */
 export const INTRO = {
   duration: 4.5,
+  durationMobile: 2.2,
   zoomInPortion: 0.55,
   panEase: "power3.out" as const,
   zoomInEase: "power3.in" as const,
   dezoomEase: "power1.inOut" as const,
   glowEase: "power2.out" as const,
 };
+
+export function introDuration(isMobile: boolean) {
+  return isMobile ? INTRO.durationMobile : INTRO.duration;
+}
 
 /** Micro float only — no rotation */
 export const IDLE = {

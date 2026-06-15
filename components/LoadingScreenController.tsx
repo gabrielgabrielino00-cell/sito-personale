@@ -26,10 +26,16 @@ function waitForWindowLoad() {
   });
 }
 
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
 export default function LoadingScreenController() {
   useLayoutEffect(() => {
     const overlay = document.getElementById("ls-overlay");
     if (!overlay) return;
+
+    const mobile = isMobileViewport();
 
     initLoadingMilestoneBridge();
     bindLoadingProgressUI();
@@ -52,19 +58,23 @@ export default function LoadingScreenController() {
       const content = overlay!.querySelector<HTMLElement>(".ls-content");
       if (!content || cancelled) return;
 
+      const contentFadeMs = mobile ? 180 : 350;
+      const overlayFadeMs = mobile ? 220 : 420;
+      const contentWaitMs = mobile ? 60 : 140;
+      const overlayWaitMs = mobile ? 180 : 420;
+
       content.style.willChange = "opacity";
-      content.style.transition = "opacity 350ms ease-out";
+      content.style.transition = `opacity ${contentFadeMs}ms ease-out`;
       content.style.opacity = "0";
 
-      await wait(140);
+      await wait(contentWaitMs);
       if (cancelled) return;
 
       overlay!.style.willChange = "opacity";
-      overlay!.style.transition =
-        "opacity 420ms cubic-bezier(0.4, 0, 0.2, 1)";
+      overlay!.style.transition = `opacity ${overlayFadeMs}ms cubic-bezier(0.4, 0, 0.2, 1)`;
       overlay!.style.opacity = "0";
 
-      await wait(420);
+      await wait(overlayWaitMs);
       if (cancelled) return;
 
       overlay!.style.display = "none";
@@ -81,14 +91,14 @@ export default function LoadingScreenController() {
 
     async function run() {
       await Promise.all([
-        wait(280),
-        waitForLoadingMilestone("scene"),
+        wait(mobile ? 0 : 280),
+        waitForLoadingMilestone(mobile ? "model" : "scene", mobile ? 8000 : 12000),
       ]);
 
       if (cancelled) return;
 
-      await animateLoadingProgressTo(100, 260);
-      await wait(100);
+      await animateLoadingProgressTo(100, mobile ? 120 : 260);
+      await wait(mobile ? 40 : 100);
       await exitLoadingScreen();
     }
 

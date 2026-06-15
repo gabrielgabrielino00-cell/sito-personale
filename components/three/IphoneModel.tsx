@@ -34,6 +34,7 @@ import {
   CATALOG_DEZOOM,
   IDLE,
   INTRO,
+  introDuration,
   IPHONE_MODEL_PATH,
   PARTICLE_COUNT,
   PARTICLE_COUNT_MOBILE,
@@ -87,8 +88,9 @@ function buildIntroTimeline(
 ) {
   const cam = isMobile ? CAMERA_MOBILE : CAMERA_DESKTOP;
   const bump = () => invalidate?.();
-  const zoomInDur = INTRO.duration * INTRO.zoomInPortion;
-  const dezoomDur = INTRO.duration - zoomInDur;
+  const duration = introDuration(isMobile);
+  const zoomInDur = duration * INTRO.zoomInPortion;
+  const dezoomDur = duration - zoomInDur;
 
   anim.timelineProgress.value = 0;
   anim.phoneRotationY.value = PHONE.fixedRotationY;
@@ -98,11 +100,11 @@ function buildIntroTimeline(
   anim.screenGlow.value = 0;
 
   const tl = gsap.timeline({ onComplete });
-  const panDur = INTRO.duration * 0.72;
+  const panDur = duration * 0.72;
 
   tl.to(
     anim.timelineProgress,
-    { value: 1, duration: INTRO.duration, ease: INTRO.panEase, onUpdate: bump },
+    { value: 1, duration, ease: INTRO.panEase, onUpdate: bump },
     0,
   )
     .to(
@@ -139,11 +141,11 @@ function buildIntroTimeline(
       anim.screenGlow,
       {
         value: 1,
-        duration: INTRO.duration * 0.7,
+        duration: duration * 0.7,
         ease: INTRO.glowEase,
         onUpdate: bump,
       },
-      INTRO.duration * 0.22,
+      duration * 0.22,
     );
 
   bump();
@@ -506,6 +508,11 @@ export function PremiumHeroRig({
     if (!modelReady || sceneReportedRef.current) return;
     sceneReportedRef.current = true;
 
+    if (isMobileRef.current) {
+      onSceneReadyRef.current?.();
+      return;
+    }
+
     let outerFrame = 0;
     let innerFrame = 0;
     outerFrame = requestAnimationFrame(() => {
@@ -521,36 +528,20 @@ export function PremiumHeroRig({
   }, [modelReady]);
 
   useEffect(() => {
-    if (!modelReady) return;
+    if (!modelReady || introStartedRef.current) return;
+    introStartedRef.current = true;
 
-    const startIntro = () => {
-      if (introStartedRef.current) return;
-      introStartedRef.current = true;
-
-      const mobile = isMobileRef.current;
-      timeline.current?.kill();
-      syncAnimToCameraPreset(anim.current, mobile);
-      timeline.current = buildIntroTimeline(
-        anim.current,
-        mobile,
-        handleIntroDone,
-        invalidate,
-      );
-      invalidate?.();
-    };
-
-    if (
-      typeof document !== "undefined" &&
-      document.getElementById("ls-overlay")
-    ) {
-      document.addEventListener("loadingComplete", startIntro, { once: true });
-      return () =>
-        document.removeEventListener("loadingComplete", startIntro);
-    }
-
-    startIntro();
-    return undefined;
-  }, [modelReady]);
+    const mobile = isMobileRef.current;
+    timeline.current?.kill();
+    syncAnimToCameraPreset(anim.current, mobile);
+    timeline.current = buildIntroTimeline(
+      anim.current,
+      mobile,
+      handleIntroDone,
+      invalidate,
+    );
+    invalidate?.();
+  }, [modelReady, handleIntroDone, invalidate]);
 
   useEffect(() => {
     if (!introComplete) return;

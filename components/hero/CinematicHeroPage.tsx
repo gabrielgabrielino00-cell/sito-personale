@@ -101,10 +101,6 @@ export default function CinematicHeroPage() {
     };
   }, [isMobile]);
 
-  useEffect(() => {
-    document.dispatchEvent(new Event("loading:hero"));
-  }, []);
-
   const ensureCatalogContent = useCallback(async () => {
     if (catalogContentReady) {
       await new Promise<void>((resolve) => {
