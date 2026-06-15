@@ -12,7 +12,7 @@ export default function TorchToggle() {
           enabled ? "text-white/60" : "text-white/40"
         }`}
       >
-        {enabled ? "Fumo on" : "Fumo off"}
+        {enabled ? "Smoke on" : "Smoke off"}
       </span>
       <label className="relative inline-flex cursor-pointer items-center">
         <input

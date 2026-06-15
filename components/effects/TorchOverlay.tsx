@@ -1,315 +1,241 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { useTorch } from "@/hooks/useTorch";
 
-const SMOKE_MAX = 220;
-const FADE_RATE = 0.014;
+const VERT = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
 
-function turbulence(x: number, y: number, t: number) {
-  return {
-    ax: Math.sin(y * 0.008 + t * 0.7) * 0.35 + Math.cos(x * 0.006 - t * 0.5) * 0.25,
-    ay: Math.cos(x * 0.007 + t * 0.6) * 0.28 + Math.sin(y * 0.005 + t * 0.4) * 0.2,
-  };
+const FRAG = `
+precision highp float;
+
+uniform float uTime;
+uniform vec2 uMouse;
+uniform vec2 uResolution;
+uniform float uIntensity;
+
+varying vec2 vUv;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
 }
 
-class SmokePlume {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
-  radius: number;
-  growth: number;
-  spin: number;
-  angle: number;
-  stretch: number;
-  lobes: Array<{ ox: number; oy: number; scale: number }>;
-
-  constructor(x: number, y: number, burst = false) {
-    const spread = burst ? 55 : 28;
-    this.x = x + (Math.random() - 0.5) * spread;
-    this.y = y + (Math.random() - 0.5) * spread * 0.6;
-    this.vx = (Math.random() - 0.5) * (burst ? 1.1 : 0.55);
-    this.vy = -0.25 - Math.random() * (burst ? 0.9 : 0.45);
-    this.maxLife = burst ? 160 + Math.random() * 80 : 200 + Math.random() * 120;
-    this.life = this.maxLife;
-    this.radius = burst ? 14 + Math.random() * 18 : 10 + Math.random() * 14;
-    this.growth = 0.28 + Math.random() * 0.22;
-    this.spin = (Math.random() - 0.5) * 0.012;
-    this.angle = Math.random() * Math.PI * 2;
-    this.stretch = 0.75 + Math.random() * 0.55;
-    this.lobes = Array.from({ length: 3 + Math.floor(Math.random() * 3) }, () => ({
-      ox: (Math.random() - 0.5) * 0.65,
-      oy: (Math.random() - 0.5) * 0.45,
-      scale: 0.45 + Math.random() * 0.55,
-    }));
-  }
-
-  update(time: number) {
-    const turb = turbulence(this.x, this.y, time);
-    this.vx += turb.ax * 0.06;
-    this.vy += turb.ay * 0.04 - 0.018;
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vx *= 0.988;
-    this.vy *= 0.99;
-    this.radius += this.growth;
-    this.angle += this.spin;
-    this.life -= 1;
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    const age = 1 - this.life / this.maxLife;
-    const fadeIn = Math.min(1, (1 - this.life / this.maxLife) * 8);
-    const fadeOut = Math.pow(this.life / this.maxLife, 0.65);
-    const alpha = fadeIn * fadeOut * 0.11;
-    if (alpha < 0.004) return;
-
-    const r = this.radius * (1 + age * 1.8);
-
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
-    ctx.scale(1, this.stretch);
-
-    for (const lobe of this.lobes) {
-      const lx = lobe.ox * r * 0.9;
-      const ly = lobe.oy * r * 0.7;
-      const lr = r * lobe.scale;
-      const grad = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
-
-      if (age < 0.18) {
-        grad.addColorStop(0, `rgba(235, 200, 165, ${alpha * 1.1})`);
-        grad.addColorStop(0.2, `rgba(210, 155, 110, ${alpha * 0.85})`);
-        grad.addColorStop(0.45, `rgba(175, 130, 95, ${alpha * 0.5})`);
-      } else if (age < 0.45) {
-        grad.addColorStop(0, `rgba(195, 185, 175, ${alpha * 0.95})`);
-        grad.addColorStop(0.3, `rgba(165, 158, 150, ${alpha * 0.6})`);
-        grad.addColorStop(0.6, `rgba(130, 125, 120, ${alpha * 0.28})`);
-      } else {
-        grad.addColorStop(0, `rgba(155, 152, 148, ${alpha * 0.8})`);
-        grad.addColorStop(0.35, `rgba(115, 112, 108, ${alpha * 0.45})`);
-        grad.addColorStop(0.7, `rgba(85, 82, 78, ${alpha * 0.18})`);
-      }
-      grad.addColorStop(1, "rgba(60, 58, 55, 0)");
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(lx, ly, lr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
+}
+
+float fbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+  for (int i = 0; i < 6; i++) {
+    v += a * noise(p);
+    p = rot * p * 2.02 + vec2(1.7, 9.2);
+    a *= 0.48;
+  }
+  return v;
+}
+
+float smokeField(vec2 uv, vec2 flow, float t) {
+  vec2 q = vec2(0.0);
+  q.x = fbm(uv + flow + vec2(0.0, t * 0.04));
+  q.y = fbm(uv + flow + vec2(5.2, 1.3) + t * 0.05);
+
+  vec2 r = vec2(0.0);
+  r.x = fbm(uv + 1.4 * q + vec2(1.7, 9.2) + t * 0.035);
+  r.y = fbm(uv + 1.4 * q + vec2(8.3, 2.8) + t * 0.042);
+
+  return fbm(uv + 1.6 * r + flow);
+}
+
+void main() {
+  vec2 uv = vUv;
+  vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
+  vec2 p = (uv - 0.5) * aspect;
+
+  vec2 mouse = (uMouse - 0.5) * aspect;
+  float dist = length(p - mouse);
+
+  float t = uTime;
+  vec2 rise = vec2(sin(t * 0.11) * 0.08, t * 0.06);
+  vec2 warp = (mouse - p) * smoothstep(0.55, 0.0, dist) * 0.35;
+  vec2 sampleUv = p * 1.35 + rise + warp;
+
+  float base = smokeField(sampleUv, vec2(0.0), t);
+  float detail = smokeField(sampleUv * 2.1 + vec2(3.1, 1.8), vec2(1.2, 0.4), t * 1.15);
+  float smoke = mix(base, detail, 0.38);
+  smoke = smoothstep(0.08, 0.92, smoke);
+
+  float emitter = smoothstep(0.42, 0.0, dist);
+  float trail = smoothstep(0.72, 0.0, dist) * 0.55;
+  float density = smoke * (0.22 + emitter * 0.78 + trail * 0.35);
+  density *= uIntensity;
+
+  vec3 hot = vec3(1.0, 0.55, 0.12);
+  vec3 core = vec3(1.0, 0.42, 0.0);
+  vec3 cool = vec3(0.55, 0.48, 0.42);
+
+  float heat = clamp(emitter * 1.2 + smoke * 0.25, 0.0, 1.0);
+  vec3 col = mix(cool, core, smoke * 0.85);
+  col = mix(col, hot, heat * 0.65);
+  col *= density * 1.35;
+
+  float alpha = clamp(density * 0.85, 0.0, 0.75);
+
+  gl_FragColor = vec4(col, alpha);
+}
+`;
 
 export default function TorchOverlay() {
   const { enabled } = useTorch();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({
-    w: 0,
-    h: 0,
-    targetX: 0,
-    targetY: 0,
-    currentX: 0,
-    currentY: 0,
-    prevX: 0,
-    prevY: 0,
-    particles: [] as SmokePlume[],
-    ready: false,
-    enabled: true,
-    time: 0,
-  });
+  const hostRef = useRef<HTMLDivElement>(null);
+  const enabledRef = useRef(enabled);
+  const readyRef = useRef(false);
 
   useEffect(() => {
-    stateRef.current.enabled = enabled;
+    enabledRef.current = enabled;
   }, [enabled]);
 
   useEffect(() => {
-    const canvasNode = canvasRef.current;
-    if (!canvasNode) return;
-    const canvasEl: HTMLCanvasElement = canvasNode;
+    const hostNode = hostRef.current;
+    if (!hostNode) return;
+    const host: HTMLDivElement = hostNode;
 
-    const context = canvasEl.getContext("2d", { alpha: true });
-    if (!context) return;
-    const ctx: CanvasRenderingContext2D = context;
-
-    const buffer = document.createElement("canvas");
-    const bufferCtxRaw = buffer.getContext("2d", { alpha: true });
-    if (!bufferCtxRaw) return;
-    const bctx: CanvasRenderingContext2D = bufferCtxRaw;
-
-    const state = stateRef.current;
     let frameId = 0;
+    let destroyed = false;
+    let targetMouse = new THREE.Vector2(0.5, 0.5);
+    let smoothMouse = new THREE.Vector2(0.5, 0.5);
 
-    function spawnSmoke(x: number, y: number, amount = 3, burst = false) {
-      for (let i = 0; i < amount; i += 1) {
-        if (state.particles.length < SMOKE_MAX) {
-          state.particles.push(new SmokePlume(x, y, burst));
-        }
-      }
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "display:block;width:100%;height:100%;";
+    host.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+    });
+    renderer.setClearColor(0x000000, 0);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const uniforms = {
+      uTime: { value: 0 },
+      uMouse: { value: new THREE.Vector2(0.5, 0.5) },
+      uResolution: { value: new THREE.Vector2(1, 1) },
+      uIntensity: { value: 1 },
+    };
+
+    const material = new THREE.ShaderMaterial({
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      uniforms,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+    scene.add(mesh);
+
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      host.style.width = `${w}px`;
+      host.style.height = `${h}px`;
+      renderer.setSize(w, h, false);
+      uniforms.uResolution.value.set(w, h);
     }
 
-    function updateParticles() {
-      for (let i = state.particles.length - 1; i >= 0; i -= 1) {
-        state.particles[i].update(state.time);
-        if (state.particles[i].life <= 0) state.particles.splice(i, 1);
-      }
+    function onMove(clientX: number, clientY: number) {
+      targetMouse.set(clientX / window.innerWidth, 1 - clientY / window.innerHeight);
     }
 
-    function fadeBuffer() {
-      bctx.globalCompositeOperation = "destination-out";
-      bctx.fillStyle = `rgba(0, 0, 0, ${FADE_RATE})`;
-      bctx.fillRect(0, 0, state.w, state.h);
-      bctx.globalCompositeOperation = "source-over";
-    }
+    const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
 
-    function paintEmitter(x: number, y: number) {
-      bctx.save();
-      bctx.globalCompositeOperation = "screen";
+    const clock = new THREE.Clock();
 
-      const emit = bctx.createRadialGradient(x, y, 0, x, y, 42);
-      emit.addColorStop(0, "rgba(220, 175, 130, 0.09)");
-      emit.addColorStop(0.35, "rgba(190, 140, 95, 0.05)");
-      emit.addColorStop(1, "rgba(100, 80, 65, 0)");
-      bctx.fillStyle = emit;
-      bctx.beginPath();
-      bctx.arc(x, y, 42, 0, Math.PI * 2);
-      bctx.fill();
+    function render() {
+      if (destroyed) return;
+      frameId = requestAnimationFrame(render);
 
-      bctx.restore();
-    }
-
-    function drawFrame(x: number, y: number) {
-      if (!state.enabled || !state.ready) {
-        ctx.clearRect(0, 0, state.w, state.h);
-        bctx.clearRect(0, 0, state.w, state.h);
+      if (!readyRef.current || !enabledRef.current) {
+        renderer.clear();
         return;
       }
 
-      fadeBuffer();
+      smoothMouse.lerp(targetMouse, 0.09);
+      uniforms.uMouse.value.copy(smoothMouse);
+      uniforms.uTime.value = clock.getElapsedTime();
+      uniforms.uIntensity.value = 1;
 
-      bctx.save();
-      bctx.globalCompositeOperation = "lighter";
-      for (const plume of state.particles) {
-        plume.draw(bctx);
-      }
-      bctx.restore();
-
-      paintEmitter(x, y);
-
-      ctx.clearRect(0, 0, state.w, state.h);
-      ctx.globalAlpha = 0.92;
-      ctx.drawImage(buffer, 0, 0);
-      ctx.globalAlpha = 1;
-    }
-
-    function resizeCanvas() {
-      state.w = window.innerWidth;
-      state.h = window.innerHeight;
-      canvasEl.width = state.w;
-      canvasEl.height = state.h;
-      buffer.width = state.w;
-      buffer.height = state.h;
-    }
-
-    function onMouseMove(e: MouseEvent) {
-      state.targetX = e.clientX;
-      state.targetY = e.clientY;
-    }
-
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches.length > 0) {
-        state.targetX = e.touches[0].clientX;
-        state.targetY = e.touches[0].clientY;
-      }
-    }
-
-    function animate() {
-      frameId = requestAnimationFrame(animate);
-      state.time += 0.016;
-
-      state.currentX += (state.targetX - state.currentX) * 0.14;
-      state.currentY += (state.targetY - state.currentY) * 0.14;
-
-      const dx = state.currentX - state.prevX;
-      const dy = state.currentY - state.prevY;
-      const speed = Math.hypot(dx, dy);
-
-      if (state.enabled && state.ready) {
-        spawnSmoke(state.currentX, state.currentY + 6, speed > 4 ? 4 : 2);
-        if (Math.random() < 0.55) {
-          spawnSmoke(
-            state.currentX + (Math.random() - 0.5) * 20,
-            state.currentY + 8 + Math.random() * 10,
-            2,
-          );
-        }
-        if (speed > 10 && Math.random() < 0.4) {
-          spawnSmoke(state.currentX, state.currentY + 4, 5, true);
-        }
-      }
-
-      state.prevX = state.currentX;
-      state.prevY = state.currentY;
-
-      updateParticles();
-      drawFrame(state.currentX, state.currentY);
+      renderer.render(scene, camera);
     }
 
     function activate() {
-      state.ready = true;
-      state.targetX = state.w * 0.5;
-      state.targetY = state.h * 0.4;
-      state.currentX = state.targetX;
-      state.currentY = state.targetY;
-      state.prevX = state.currentX;
-      state.prevY = state.currentY;
-      spawnSmoke(state.currentX, state.currentY + 8, 12, true);
+      readyRef.current = true;
+      targetMouse.set(0.5, 0.4);
+      smoothMouse.copy(targetMouse);
     }
 
-    resizeCanvas();
-    state.targetX = state.w * 0.5;
-    state.targetY = state.h * 0.4;
-    state.currentX = state.targetX;
-    state.currentY = state.targetY;
-    state.prevX = state.currentX;
-    state.prevY = state.currentY;
-
+    resize();
     const onLoadingDone = () => activate();
     if (!document.body.classList.contains("ls-loading-active")) {
       activate();
     } else {
-      state.ready = false;
       document.addEventListener("loadingComplete", onLoadingDone, { once: true });
     }
 
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", resize);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("touchmove", onTouchMove, { passive: true });
 
-    animate();
+    render();
 
     return () => {
+      destroyed = true;
       cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("loadingComplete", onLoadingDone);
-      state.particles = [];
-      ctx.clearRect(0, 0, state.w, state.h);
-      bctx.clearRect(0, 0, state.w, state.h);
+      material.dispose();
+      mesh.geometry.dispose();
+      renderer.dispose();
+      canvas.remove();
     };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      id="smoke-canvas"
+    <div
+      ref={hostRef}
+      id="smoke-shader-host"
       aria-hidden
-      className={`pointer-events-none fixed top-0 left-0 z-[45] transition-opacity duration-400 ${
+      className={`pointer-events-none fixed top-0 left-0 z-[45] transition-opacity duration-500 ${
         enabled ? "opacity-100" : "opacity-0"
       }`}
     />
