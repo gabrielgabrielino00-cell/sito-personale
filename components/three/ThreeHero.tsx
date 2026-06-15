@@ -20,6 +20,7 @@ import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import * as THREE from "three";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import Logo from "@/components/brand/Logo";
 import {
   CAMERA_DESKTOP,
   CAMERA_MOBILE,
@@ -276,26 +277,46 @@ function HeroOverlay({
       {visible ? (
         <motion.div
           ref={overlayRef}
-          className="pointer-events-none absolute inset-x-0 bottom-[11%] z-20 flex flex-col items-center px-6 text-center md:bottom-[13%]"
+          className="pointer-events-none absolute inset-x-0 bottom-[14%] z-20 flex flex-col items-center px-6 text-center md:bottom-[13%]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.1, ease: textEase }}
         >
-          <motion.h1
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.95, delay: 0.12, ease: textEase }}
-            className="max-w-3xl text-4xl font-semibold tracking-[-0.02em] text-white md:text-6xl lg:text-7xl"
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.95, delay: 0.1, ease: textEase }}
+            className="mb-5 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_0_48px_rgba(249,115,22,0.14)] md:mb-6 md:h-24 md:w-24"
           >
-            iPhone 16 Pro
-          </motion.h1>
-          <motion.p
+            <Logo size="xl" className="h-12 text-white md:h-14" />
+          </motion.div>
+
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.95, delay: 0.32, ease: textEase }}
-            className="mt-4 max-w-lg text-sm font-light tracking-wide text-gray-500 md:text-base"
+            transition={{ duration: 0.95, delay: 0.22, ease: textEase }}
+            className="text-3xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
           >
-            Titanium design. Pro performance. Crafted to be extraordinary.
+            Elettronica
+            <span className="text-brand">51</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.34, ease: textEase }}
+            className="mt-2 text-[11px] font-semibold tracking-[0.28em] text-brand uppercase md:text-xs"
+          >
+            Tech Oggi
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.46, ease: textEase }}
+            className="mt-4 max-w-sm text-sm font-light leading-relaxed text-gray-400 md:max-w-md md:text-base"
+          >
+            Qualità, Convenienza, Velocità — Tutto Qui.
           </motion.p>
         </motion.div>
       ) : null}
