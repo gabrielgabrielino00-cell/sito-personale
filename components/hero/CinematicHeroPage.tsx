@@ -58,6 +58,13 @@ export default function CinematicHeroPage() {
 
   const viewMode = depthToViewMode(catalogDepth);
   const inCatalog = catalogDepth > 0;
+  const showBrandBar = catalogDepth === 0;
+  const viewportTop = showBrandBar
+    ? "top-[calc(var(--header-h)+var(--hero-brand-h))]"
+    : "top-[var(--header-h)]";
+  const viewportHeight = showBrandBar
+    ? "h-[calc(100svh-var(--header-h)-var(--hero-brand-h))]"
+    : "h-[calc(100svh-var(--header-h))]";
 
   useEffect(() => {
     const onIntroDone = () => setHeroIntroDone(true);
@@ -434,13 +441,13 @@ export default function CinematicHeroPage() {
     <>
       <Header />
       <CartPanel />
+      <HeroBrandOverlay visible={showBrandBar} />
 
       <div
         ref={viewportRef}
-        className="fixed inset-x-0 top-[var(--header-h)] z-30 h-[calc(100svh-var(--header-h))] min-h-[560px] overflow-hidden bg-[#050505]"
+        className={`fixed inset-x-0 z-30 min-h-[560px] overflow-hidden bg-[#050505] ${viewportTop} ${viewportHeight}`}
       >
         <ThreeHero ref={heroRef} fillViewport />
-        <HeroBrandOverlay visible={catalogDepth === 0} />
         <CatalogOverlay
           panelRef={catalogPanelRef}
           scrollRef={catalogScrollRef}
@@ -467,7 +474,7 @@ export default function CinematicHeroPage() {
       </div>
 
       <div
-        className="h-[calc(100svh-var(--header-h))] min-h-[560px] shrink-0"
+        className={`min-h-[560px] shrink-0 ${viewportHeight}`}
         aria-hidden
       />
 

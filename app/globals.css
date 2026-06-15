@@ -79,6 +79,7 @@ canvas {
   --dur-hero: 980ms;
   --ease-nav: var(--ease-ios-spring);
   --header-h: 4.5rem;
+  --hero-brand-h: 2rem;
 }
 
 ::view-transition-old(root),
