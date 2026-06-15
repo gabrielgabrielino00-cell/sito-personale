@@ -7,6 +7,10 @@ import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { categories } from "@/lib/data";
 import SwapReveal from "@/components/motion/SwapReveal";
 import { useCoverflowCarousel } from "@/hooks/useCoverflowCarousel";
+import {
+  requestCategoryFilter,
+  requestSiteNavigation,
+} from "@/lib/siteNavigation";
 const Canvas3D = dynamic(() => import("@/components/three/Canvas3D"), {
   ssr: false,
   loading: () => (
@@ -180,6 +184,14 @@ export default function CategoryCarousel() {
                       </h3>
                       <a
                         href="#prodotti"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          requestCategoryFilter(cat.slug);
+                          requestSiteNavigation({
+                            type: "prodotti",
+                            categorySlug: cat.slug,
+                          });
+                        }}
                         className="inline-flex items-center gap-2 text-sm font-medium text-brand transition-colors hover:text-brand-dark"
                       >
                         Visualizza i prodotti

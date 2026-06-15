@@ -7,6 +7,7 @@ import { navLinks, socialLinks } from "@/lib/data";
 import Logo from "@/components/brand/Logo";
 import SwapLink from "@/components/motion/SwapLink";
 import { useHeaderScroll } from "@/hooks/useHeaderScroll";
+import { useCart } from "@/hooks/useCart";
 import {
   WhatsappIcon,
   InstagramIcon,
@@ -26,6 +27,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
   const scrolled = useHeaderScroll();
+  const { itemCount, toggleCart } = useCart();
 
   return (
     <header
@@ -52,16 +54,17 @@ export default function Header() {
                 <div className="invisible absolute top-full left-0 min-w-[200px] rounded-lg border border-gray-100 bg-white py-2 opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100 dark:border-white/10 dark:bg-[#141414]">
                   {link.children.map((child) => (
                     <SwapLink
-                      key={child}
-                      href="#categorie"
+                      key={child.slug}
+                      href="#prodotti"
+                      categorySlug={child.slug}
                       className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-brand dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-brand"
                     >
-                      {child}
+                      {child.label}
                     </SwapLink>
                   ))}
                 </div>
               </div>
-            ) : link.href.startsWith("#") && link.href !== "#" ? (
+            ) : link.href.startsWith("#") ? (
               <SwapLink
                 key={link.label}
                 href={link.href}
@@ -102,13 +105,17 @@ export default function Header() {
           })}
 
           <button
+            type="button"
             aria-label="Carrello"
+            onClick={toggleCart}
             className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-all hover:bg-gray-100 hover:text-brand dark:text-gray-300 dark:hover:bg-white/10"
           >
             <ShoppingCart className="h-4 w-4" />
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
-              0
-            </span>
+            {itemCount > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            ) : null}
           </button>
 
           <button
@@ -138,16 +145,17 @@ export default function Header() {
                 {catOpen &&
                   link.children.map((child) => (
                     <SwapLink
-                      key={child}
-                      href="#categorie"
+                      key={child.slug}
+                      href="#prodotti"
+                      categorySlug={child.slug}
                       className="block py-2 pl-4 text-sm text-gray-500 dark:text-gray-400"
                       onClick={() => setMenuOpen(false)}
                     >
-                      {child}
+                      {child.label}
                     </SwapLink>
                   ))}
               </div>
-            ) : link.href.startsWith("#") && link.href !== "#" ? (
+            ) : link.href.startsWith("#") ? (
               <SwapLink
                 key={link.label}
                 href={link.href}

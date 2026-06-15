@@ -13,6 +13,13 @@ import {
 } from "@/hooks/useHeroCatalogScrollTrigger";
 import type { ThreeHeroHandle } from "@/components/three/ThreeHero";
 import { preloadCategoryModels } from "@/components/three/preloadModels";
+import CartPanel from "@/components/cart/CartPanel";
+import {
+  SITE_NAVIGATE_EVENT,
+  depthForDestination,
+  requestCategoryFilter,
+  type SiteDestination,
+} from "@/lib/siteNavigation";
 
 const ThreeHero = dynamic(
   () =>
@@ -344,9 +351,93 @@ export default function CinematicHeroPage() {
     onContattiHide: runContattiBack,
   });
 
+  const waitForTransitionIdle = useCallback(async () => {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      if (!transitionRunningRef.current) return;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+    }
+  }, []);
+
+  const waitForIntro = useCallback(async () => {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      if (heroRef.current?.introComplete) return;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 100));
+    }
+  }, []);
+
+  const scrollCatalogSection = useCallback((selector: string) => {
+    const root = catalogScrollRef.current;
+    if (!root) return;
+    const target = root.querySelector(selector);
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const navigateToDestination = useCallback(
+    async (destination: SiteDestination) => {
+      const targetDepth = depthForDestination(destination.type);
+
+      if (
+        destination.type === "prodotti" ||
+        destination.type === "categorie"
+      ) {
+        requestCategoryFilter(destination.categorySlug ?? null);
+      }
+
+      await waitForIntro();
+
+      while (depthRef.current > targetDepth) {
+        await waitForTransitionIdle();
+        if (depthRef.current === 3) await runContattiBack();
+        else if (depthRef.current === 2) await runAssistenzaBack();
+        else if (depthRef.current === 1) await runHide();
+        else break;
+        await waitForTransitionIdle();
+      }
+
+      while (depthRef.current < targetDepth) {
+        await waitForTransitionIdle();
+        if (depthRef.current === 0) await runReveal();
+        else if (depthRef.current === 1) await runAssistenza();
+        else if (depthRef.current === 2) await runContatti();
+        else break;
+        await waitForTransitionIdle();
+      }
+
+      if (destination.type === "categorie") {
+        scrollCatalogSection("#categorie");
+      } else if (destination.type === "assistenza") {
+        scrollCatalogSection("#assistenza");
+      } else if (destination.type === "contatti") {
+        scrollCatalogSection("#contatti");
+      }
+    },
+    [
+      runAssistenza,
+      runAssistenzaBack,
+      runContatti,
+      runContattiBack,
+      runHide,
+      runReveal,
+      scrollCatalogSection,
+      waitForIntro,
+      waitForTransitionIdle,
+    ],
+  );
+
+  useEffect(() => {
+    const onNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<SiteDestination>).detail;
+      void navigateToDestination(detail);
+    };
+
+    document.addEventListener(SITE_NAVIGATE_EVENT, onNavigate);
+    return () => document.removeEventListener(SITE_NAVIGATE_EVENT, onNavigate);
+  }, [navigateToDestination]);
+
   return (
     <>
       <Header />
+      <CartPanel />
 
       <div
         ref={viewportRef}

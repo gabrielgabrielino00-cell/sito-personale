@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { Mail, Phone, Check, Star, Headphones, ShieldCheck, Truck } from "lucide-react";
 import { socialLinks, footerLinks, contactInfo } from "@/lib/data";
 import Logo from "@/components/brand/Logo";
+import ContactForm from "@/components/sections/ContactForm";
+import SwapLink from "@/components/motion/SwapLink";
 import {
   WhatsappIcon,
   InstagramIcon,
@@ -97,13 +100,22 @@ export default function ContattiSection({ embedded = false }: ContattiSectionPro
             </h6>
             <ul className="space-y-2.5">
               {footerLinks.map((link) => (
-                <li key={link}>
-                  <a
-                    href="#"
-                    className="text-sm text-gray-500 transition-colors hover:text-brand"
-                  >
-                    {link}
-                  </a>
+                <li key={link.label}>
+                  {link.href.startsWith("#") ? (
+                    <SwapLink
+                      href={link.href}
+                      className="text-sm text-gray-500 transition-colors hover:text-brand"
+                    >
+                      {link.label}
+                    </SwapLink>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-500 transition-colors hover:text-brand"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -113,17 +125,27 @@ export default function ContattiSection({ embedded = false }: ContattiSectionPro
             <h6 className="mb-4 text-sm font-bold tracking-wider text-white uppercase">
               Mettiti in contatto
             </h6>
-            <ul className="space-y-2.5">
+            <ul className="mb-6 space-y-2.5">
               {contactInfo.map((item) => {
                 const Icon = contactIcons[item.icon];
                 return (
                   <li key={item.text} className="flex items-start gap-3">
                     <Icon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                    <span className="text-sm text-gray-500">{item.text}</span>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        className="text-sm text-gray-500 transition-colors hover:text-brand"
+                      >
+                        {item.text}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-gray-500">{item.text}</span>
+                    )}
                   </li>
                 );
               })}
             </ul>
+            <ContactForm />
           </div>
         </div>
 
