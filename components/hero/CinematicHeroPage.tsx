@@ -452,17 +452,15 @@ export default function CinematicHeroPage() {
 
         {catalogDepth === 0 && heroIntroDone ? (
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 border-t border-white/[0.08] bg-[#050505]/80 px-4 py-3 backdrop-blur-sm md:px-8"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 border-t border-white/15 bg-[#050505]/95 px-4 py-4 md:px-8 md:py-3"
             aria-live="polite"
           >
-            <p className="flex items-center justify-center gap-2 text-center text-[10px] font-medium tracking-[0.28em] text-gray-500 uppercase">
+            <p className="mx-auto flex max-w-md items-center justify-center gap-2.5 text-center text-sm font-medium leading-snug text-gray-100 md:text-xs md:tracking-[0.2em] md:text-gray-400 md:uppercase">
               <ChevronDown
-                className="h-3.5 w-3.5 shrink-0 animate-bounce text-brand"
+                className="h-5 w-5 shrink-0 animate-bounce text-brand md:h-3.5 md:w-3.5"
                 aria-hidden
               />
-              {isMobile
-                ? "Swippa verso il basso per esplorare prodotti e categorie"
-                : "Scorri giù per esplorare prodotti e categorie"}
+              Scorri giù per esplorare prodotti e categorie
             </p>
           </div>
         ) : null}

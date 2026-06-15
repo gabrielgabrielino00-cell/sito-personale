@@ -16,7 +16,6 @@ import {
   OrbitControls,
 } from "@react-three/drei";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown } from "lucide-react";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import * as THREE from "three";
@@ -298,22 +297,6 @@ function HeroOverlay({
           >
             Titanium design. Pro performance. Crafted to be extraordinary.
           </motion.p>
-          <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, delay: 0.52, ease: textEase }}
-            className="mt-6 max-w-xs text-[10px] font-medium tracking-[0.26em] text-gray-500 uppercase"
-          >
-            Scorri giù per scoprire il catalogo
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.85, delay: 0.62, ease: textEase }}
-            aria-hidden
-          >
-            <ChevronDown className="mx-auto mt-2 h-4 w-4 animate-bounce text-brand/80" />
-          </motion.div>
         </motion.div>
       ) : null}
     </AnimatePresence>
