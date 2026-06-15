@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { CartProvider } from "@/hooks/useCart";
 import { ProductFilterProvider } from "@/hooks/useProductFilter";
+import { TorchProvider } from "@/hooks/useTorch";
 import LoadingScreen from "@/components/LoadingScreen";
 import HeroModelPreload from "@/components/three/HeroModelPreload";
 import "./globals.css";
@@ -52,9 +53,11 @@ export default function RootLayout({
         <LoadingScreen />
         <HeroModelPreload />
         <ThemeProvider>
-          <CartProvider>
-            <ProductFilterProvider>{children}</ProductFilterProvider>
-          </CartProvider>
+          <TorchProvider>
+            <CartProvider>
+              <ProductFilterProvider>{children}</ProductFilterProvider>
+            </CartProvider>
+          </TorchProvider>
         </ThemeProvider>
       </body>
     </html>
