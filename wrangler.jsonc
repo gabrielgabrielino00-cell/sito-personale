@@ -10,5 +10,11 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    {
+      "pattern": "vqpeeeeeee.xyz",
+      "custom_domain": true
+    }
+  ]
 }
