@@ -54,7 +54,7 @@ export default function RootLayout({
           as="fetch"
           crossOrigin="anonymous"
         />
-        <meta name="site-build" content="no-smoke-v4" />
+        <meta name="site-build" content="cloudflare-v1" />
       </head>
       <body className="ls-loading-active min-h-full bg-black font-sans text-gray-100 antialiased transition-colors duration-500 dark:bg-black dark:text-gray-100">
         <LoadingScreen />
